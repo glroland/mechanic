@@ -3,7 +3,7 @@ pylint
 streamlit
 watchdog
 requests
-llama-stack-client
+llama-stack-client==0.3.0
 openai
 fire
 streamlit-pdf

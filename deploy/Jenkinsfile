@@ -27,7 +27,7 @@ pipeline
       {
          steps 
          {
-            sh 'cd chatbot ; docker build . --tag chatbot:$BUILD_NUMBER'
+            sh 'cd chatbot ; docker build --no-cache . --tag chatbot:$BUILD_NUMBER'
             sh 'cd chatbot ; docker save chatbot:$BUILD_NUMBER > chatbot-dockerimage.tar'
             step(followSymlinks: false, artifacts: 'chatbot/chatbot-dockerimage.tar', $class: 'ArtifactArchiver')
             sh 'cd chatbot ; docker rmi chatbot:$BUILD_NUMBER'
