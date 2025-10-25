@@ -6,6 +6,6 @@ metadata:
     {{- include "mechanic.labels" . | nindent 4 }}
 immutable: false
 data:
-  LLAMA_STACK_URL: "http://my-llama-stack.my-llama-stack.svc:8080"
-  API_KEY: "nokeyneeded"
-  MODEL: "openai/gpt-4"
+  OPENAI_BASE_URL: "http://my-llama-stack.my-llama-stack.svc:8080/v1"
+  OPENAI_API_KEY: "nokeyneeded"
+  MODEL: "together/meta-llama/Llama-4-Scout-17B-16E-Instruct"

@@ -41,16 +41,16 @@ spec:
           ports:
           - containerPort: {{ .Values.image.port }}
           env:
-            - name: LLAMA_STACK_URL
+            - name: OPENAI_BASE_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
-                  key: LLAMA_STACK_URL
-            - name: API_KEY
+                  key: OPENAI_BASE_URL
+            - name: OPENAI_API_KEY
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
-                  key: API_KEY
+                  key: OPENAI_API_KEY
             - name: MODEL
               valueFrom:
                 configMapKeyRef:
