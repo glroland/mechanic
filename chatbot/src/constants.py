@@ -32,7 +32,9 @@ class AppUserInterfaceElements:
 class CannedGreetings:
     """ Preestablished Responses """
 
-    INTRO = "Welcome to the garage!!!  What are you working on today?"
+    INTRO = "Welcome to the garage!!!"
+    ASK = "How can I help you with your vette?"
+    BREAK = "\n\n"
 
 # pylint: disable=too-few-public-methods
 class MessageAttributes:

@@ -7,58 +7,46 @@ import os
 import logging
 import streamlit as st
 from openai import OpenAI
-from llama_stack_client import LlamaStackClient
-from llama_stack_client.types.shared_params.query_config import QueryConfig
 from constants import AGENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
 class AIGateway:
 
-    ENV_LLAMA_STACK_URL = "LLAMA_STACK_URL"
-    ENV_API_KEY = "API_KEY"
+    ENV_OPENAI_BASE_URL = "OPENAI_BASE_URL"
+    ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
     ENV_MODEL = "MODEL"
-
-    LLS_OPENAI_URL_SUFFIX = "/v1/openai/v1"
 
     MECHANIC_VECTOR_DB_NAME = "mechanic_vector_db"
 
     openai_client : OpenAI = None
-    llama_stack_client : LlamaStackClient = None
     previous_response_id = None
     model = None
+    vector_store_id = None
 
     def connect(self):
         """ Connects to the remote service provider. """
         # get the base url
-        if not self.ENV_LLAMA_STACK_URL in os.environ:
-            msg = "LLama Stack Endpoint URL has not been set and is a required variable. 'LLAMA_STACK_URL' missing."
+        if not self.ENV_OPENAI_BASE_URL in os.environ:
+            msg = "OpenAI Base URL has not been set and is a required variable. 'OPENAI_BASE_URL' missing."
             logger.error(msg)
             raise ValueError(msg)
-        llama_stack_url = os.environ[self.ENV_LLAMA_STACK_URL]
-        logger.info("LLama Stack URL: %s", llama_stack_url)
+        openai_base_url = os.environ[self.ENV_OPENAI_BASE_URL]
+        logger.info("OpenAI Base URL: %s", openai_base_url)
 
         # get the api key
-        if not self.ENV_API_KEY in os.environ:
-            msg = "LLS/OpenAI API Key is a required environment variable.  'API_KEY' missing."
+        if not self.ENV_OPENAI_API_KEY in os.environ:
+            msg = "OpenAI API Key is a required environment variable.  'OPENAI_API_KEY' missing."
             logger.error(msg)
             raise ValueError(msg)
-        api_key = os.environ[self.ENV_API_KEY]
-        logger.info("LLS/OpenAI API Key: %s", api_key)
+        api_key = os.environ[self.ENV_OPENAI_API_KEY]
+        logger.info("OpenAI API Key: %s", api_key)
 
-        # Connect to LLama Stack
-        logger.info("Connecting to LLama Stack.  URL=%s", llama_stack_url)
-        self.llama_stack_client = LlamaStackClient(
-            base_url=llama_stack_url,
-        )
-        logger.info("Successfully connected to LLama Stack.")
-
-        # create client connection
-        openai_base_url = llama_stack_url + self.LLS_OPENAI_URL_SUFFIX
-        logger.info("Initializing OpenAI Client based on a base url value of = %s", openai_base_url)
-        openai_client = OpenAI(base_url = openai_base_url,
+        # Connect to OpenaI
+        logger.info("Connecting to OpenAI.  URL=%s", openai_base_url)
+        self.openai_client = OpenAI(base_url = openai_base_url,
                                api_key = api_key)
-        logger.info("OpenAI Initialized")
+        logger.info("Successfully connected to OpenAI.")
 
         # get configured model
         if not self.ENV_MODEL in os.environ:
@@ -72,8 +60,6 @@ class AIGateway:
             raise ValueError(msg)
         logger.info("OpenAI Model: %s", self.model)
 
-        self.openai_client = openai_client
-
     def process_user_chat(self, user_input: str, placeholder) -> str:
         """ Process a chat request.
         
@@ -86,6 +72,9 @@ class AIGateway:
         logger.info("System Prompt: %s", AGENT_SYSTEM_PROMPT)
         logger.info("User Input: %s", user_input)
 
+        # get vector store id
+        vs_id = self.get_vector_store_id()
+
         # Employ OpenAI Responses AI
         response_stream = self.openai_client.responses.create(
             model=self.model,
@@ -96,7 +85,9 @@ class AIGateway:
             top_p=1,
             store=True,
             previous_response_id=self.previous_response_id,
-            stream=True
+            stream=True,
+            tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
+            include=["file_search_call.results"]
         )
 
         # Capture response
@@ -112,55 +103,33 @@ class AIGateway:
 
         return ai_response
 
-    def rag_search(self, search_string: str, max_chunks: int = 5):
-        """ Search vector store for relevant content.
+    def get_vector_store_id(self):
+        """ Gets the vector store Id for the application.
+
+            Returns: vector store id
         """
-        logger.info("Performing RAG Search.  Search String=%s. Max Chunks=%s", search_string, max_chunks)
-    
-        # Retrieve the vector database for the mechanic application
-        logger.info("Searching for the mechanic vector database.  DB_NAME=%s", self.MECHANIC_VECTOR_DB_NAME)
-        mechanic_vdb = None
-        vector_db_list = self.llama_stack_client.vector_dbs.list()
-        try:
-            for vector_db in vector_db_list:    # Search with new LLS API
-                logger.debug("Vector DB vector_db_name = %s", vector_db.vector_db_name)
-                if vector_db.vector_db_name == self.MECHANIC_VECTOR_DB_NAME:
-                    logger.debug("VDB Match Found!")
-                    mechanic_vdb = vector_db
-                    break
-        except AttributeError as e:
-            logger.warning("Seems like the LLS environment is too old for this search API.  Falling back...  error=%s", e)           
-        if mechanic_vdb is None:        # Search with the old LLS API
-            for vector_db in vector_db_list:
-                logger.debug("Vector DB vector_db_name = %s", vector_db.identifier)
-                if vector_db.identifier == self.MECHANIC_VECTOR_DB_NAME:
-                    logger.debug("VDB Match Found!")
-                    mechanic_vdb = vector_db
-                    break
-        if mechanic_vdb is None:
-            msg = "No matching Vector Database for the Mechanic application could be found."
-            logger.error(msg + " DBs=%s", vector_db_list)
-            raise ValueError(msg)
+        # use cache
+        if self.vector_store_id is not None:
+            return self.vector_store_id
 
-        # Query documents
-        query_config = QueryConfig(max_chunks=max_chunks)
-        metadata, content = self.llama_stack_client.tool_runtime.rag_tool.query(
-            vector_db_ids=[mechanic_vdb.identifier],
-            content=search_string,
-            query_config=query_config
-        )
+        # find vector store id
+        vector_stores = self.openai_client.vector_stores.list()
+        logger.info("Vector Stores: %s", vector_stores)
+        for vs in vector_stores:
+            if vs.name == self.MECHANIC_VECTOR_DB_NAME:
+                logger.debug("Vector Store ID: %s", vs.id)
+                self.vector_store_id = vs.id
+                return self.vector_store_id
 
-        # Parse metadata
-        metadata = metadata[1]
-        document_ids = metadata["document_ids"]
-        logger.info("Matching Content.  #=%s. DocIds=%s", len(document_ids), document_ids)
+        # no vector database - fail
+        msg = "Vector Database must be created and populated before running web application!"
+        logger.error(msg)
+        raise ValueError(msg)
 
-        # Parse content
-        content = content[1]
-        results = []
-        for result in content:
-            text = result.text
-            logger.info("Matching Chunk = %s", text)
-            results.append(text)
-
-        return results
+    def get_pretty_model_name(self):
+        """ Gets the beautified name of the enabled model.
+        
+            Returns: model name
+        """
+        parts = os.path.split(self.model)
+        return parts[len(parts) - 1]
