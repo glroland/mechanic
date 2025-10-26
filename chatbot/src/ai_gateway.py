@@ -90,7 +90,7 @@ class AIGateway:
             previous_response_id=self.previous_response_id,
             stream=True,
             #tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
-            include=["file_search_call.results"]
+            #include=["file_search_call.results"]
         )
 
         # Capture response
