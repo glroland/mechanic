@@ -19,6 +19,9 @@ class AIGateway:
 
     MECHANIC_VECTOR_DB_NAME = "mechanic_vector_db"
 
+    SEARCH_TIMEOUT = 5 * 60
+    MAX_SEARCH_RESULTS = 3
+
     openai_client : OpenAI = None
     previous_response_id = None
     model = None
@@ -73,7 +76,7 @@ class AIGateway:
         logger.info("User Input: %s", user_input)
 
         # get vector store id
-        vs_id = self.get_vector_store_id()
+        #vs_id = self.get_vector_store_id()
 
         # Employ OpenAI Responses AI
         response_stream = self.openai_client.responses.create(
@@ -86,7 +89,7 @@ class AIGateway:
             store=True,
             previous_response_id=self.previous_response_id,
             stream=True,
-            tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
+            #tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
             include=["file_search_call.results"]
         )
 
@@ -133,3 +136,33 @@ class AIGateway:
         """
         parts = os.path.split(self.model)
         return parts[len(parts) - 1]
+
+    def rag_search(self, query:str, max_matches:int=None):
+        """ Searches the vector store for a match to the provided user query. 
+        
+            query - user query
+        """
+        # get vector store
+        vector_store_id = self.get_vector_store_id()
+
+        # determine max results
+        max = self.MAX_SEARCH_RESULTS
+        if max_matches is not None:
+            max = max_matches
+        logger.debug("Max Matches: %s", max)
+
+        # Perform vector search
+        vs_response = self.openai_client.vector_stores.search(
+            vector_store_id=vector_store_id,
+            query=query,
+            max_num_results=max,
+            timeout=self.SEARCH_TIMEOUT
+            )
+
+        # extract meaningful content from results
+        results = []
+        for r in vs_response.data:
+            logger.info("Match: %s", r)
+
+        logger.debug("Vector Search Results: %s", results)
+        return results

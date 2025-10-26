@@ -179,3 +179,7 @@ Depending on the version of LLama Stack in use, the vector database will need to
 - Example 3
 
             What are the steps to drain and refill the cooling system?
+
+- Example 4
+
+            What is included in a major carburetor overhaul kit that isn't included in a minor one?

@@ -93,6 +93,16 @@ if user_input := st.chat_input():
     st.session_state.messages.append({"role": "user", "content": user_input})
     logger.info ("st.session_state.messages - %s", st.session_state.messages)
 
+    # Search VDB for relevant content
+    matching_content = gateway.rag_search(user_input)
+    expanded_user_input = ""
+    if matching_content is not None and len(matching_content) > 0:
+        expanded_user_input += "Context:\n"
+        for c in matching_content:
+            expanded_user_input += c + "\n"
+        expanded_user_input += "\nQuestion:"
+    expanded_user_input += user_input
+
     # Process chat
     ai_response = None
     with messages.chat_message(MessageAttributes.ASSISTANT):
