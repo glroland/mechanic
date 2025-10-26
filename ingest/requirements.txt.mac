@@ -1,6 +1,6 @@
 docling[mac_intel]
 click
-llama_stack_client
+openai
 langchain_text_splitters
 kfp
 kfp[kubernetes]
