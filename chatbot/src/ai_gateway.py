@@ -161,8 +161,13 @@ class AIGateway:
 
         # extract meaningful content from results
         results = []
+        logger.debug("VDB Search Response: %s", vs_response)
         for r in vs_response.data:
-            logger.info("Match: %s", r)
+            matching_set = []
+            for c in r.content:
+                matching_set.append(c.text)
+            logger.info("===== MATCHING CONTENT =====  Score=%s. Content=%s", r.score, matching_set)
+            results = results + matching_set
 
         logger.debug("Vector Search Results: %s", results)
         return results
