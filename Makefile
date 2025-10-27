@@ -29,5 +29,8 @@ run-chatbot:
 run-corvetteforummcp:
 	cd corvetteforum-mcp/src && python app.py
 
+compile-pipeline:
+	cd ingest/src && python pipeline.py
+
 test:
 	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../target/data/c3_repair.md
