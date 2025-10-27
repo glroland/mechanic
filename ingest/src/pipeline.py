@@ -32,7 +32,7 @@ _log = logging.getLogger(__name__)
 
 @dsl.component(
     base_image=PYTHON_BASE_IMAGE,
-    packages_to_install=["llama-stack-client", "fire", "requests"],
+    packages_to_install=["llama-stack-client==0.2.10", "fire", "requests"],
 )
 def register_vector_db(
     service_url: str,
@@ -124,8 +124,8 @@ def create_pdf_splits(
         "docling>=2.43.0",
         "transformers",
         "sentence-transformers",
-        "llama-stack",
-        "llama-stack-client",
+        "llama-stack==0.2.10",
+        "llama-stack-client==0.2.10",
         "pymilvus",
         "fire",
         "rapidocr-onnxruntime",
