@@ -8,4 +8,4 @@ immutable: false
 data:
   OPENAI_BASE_URL: "http://my-llama-stack.my-llama-stack.svc:8080/v1"
   OPENAI_API_KEY: "nokeyneeded"
-  MODEL: "together/meta-llama/Llama-4-Scout-17B-16E-Instruct"
+  MODEL: "together/openai/gpt-oss-120b"
