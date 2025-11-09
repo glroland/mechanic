@@ -15,8 +15,6 @@ ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
 
 DEFAULT_TIMEOUT = 30 * 60
 
-VECTOR_STORE_PROVIDER = "milvus-local"  # milvus-remote, milvus-local, faiss
-
 class ErrorCodes:
     SUCCESS = 0
     ILLEGAL_ARGS = 1
@@ -59,6 +57,7 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
     
         openai_baseurl - OpenAI Base URL
         embedding_model_name - Embedding Model Name
+        vdb_provider - vector db provider in lls
         input_file - Input file to ingest
     """
     # Default to not set
@@ -150,8 +149,8 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
             #}
         },
         extra_body={
-            "provider_id": VECTOR_STORE_PROVIDER,
-#            "embedding_model": embedding_model_name,
+            "provider_id": vdb_provider,
+            "embedding_model": embedding_model_name,
 #            "embedding_dimension": 384
         }
     )
