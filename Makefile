@@ -1,6 +1,6 @@
 OPENAI_BASE_URL := https://my-llama-stack-my-llama-stack.apps.ocp.home.glroland.com/v1/
-MODEL := together/meta-llama/Llama-4-Scout-17B-16E-Instruct
-EMBEDDING_MODEL := granite-embedding-125m
+MODEL := together/openai/gpt-oss-120b
+EMBEDDING_MODEL := sentence-transformers/sentence-transformers/all-mpnet-base-v2
 VECTORDB_PROVIDER := milvus
 
 OS := $(shell uname -s)
