@@ -8,7 +8,6 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: gp3-csi
   volumeMode: Filesystem
 ---
 kind: Deployment
