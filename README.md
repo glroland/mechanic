@@ -128,6 +128,39 @@ Depending on the version of LLama Stack in use, the vector database will need to
 
 4. Create run.
 
+## Ingest Data (via import.py within a running chatbot pod)
+
+Some environments are challenging from which to ingest the service manual data.  In this case, it is possible to ingest the content using a CLI from within a running web container using these instructions.
+
+1. From a CLI, log into the remote cluster using the oc command.
+2. Change to the mechanic namespace
+
+            oc project mechanic
+
+3. Get the name of the pod for the chatbot web ui.
+
+            oc get pods | grep chatbot
+
+4. RSH into the running pod.
+
+            oc rsh m1-chatbot-f9c99bb9f-xrdgr
+
+5. Download the service manual in markdown format from github
+
+            cd /tmp
+            wget https://raw.githubusercontent.com/glroland/mechanic/refs/heads/main/chatbot/src/assets/c3_repair.md
+
+6. Run the data ingestion process
+
+            cd /temp
+            wget https://raw.githubusercontent.com/glroland/mechanic/fedf18952679ef562ba1975b1bd96ab165d4d23d/ingest/src/import.py
+            pip install langchain_text_splitters
+            python import.py http://lsd-llama-milvus-service.mechanic.svc.cluster.local:8321 granite-embedding-125m milvus /tmp/c3_repair.md
+
+7. Open the chatbot web application.  Find the URL using the routes tab for the project.
+
+8. Enter something like this in the user prompt - 'average engine temp' and confirm that a sensical answer is provided.
+
 ## Deploy Chatbot
 
 1. Checkout this project to your local filesystem.
