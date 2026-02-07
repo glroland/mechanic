@@ -21,7 +21,7 @@ clean:
 ingest-data:
 	mkdir -p target/data
 	cd target/data && docling --from pdf --to json --to md --image-export-mode referenced --ocr --output . --abort-on-error ../../chatbot/src/assets/c3_repair.pdf
-	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../target/data/c3_repair.md
+	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) mechanic_vector_db ../../target/data/c3_repair.md
 
 run-chatbot:
 	cd chatbot/src && OPENAI_BASE_URL=$(OPENAI_BASE_URL) OPENAI_API_KEY=$(OPENAI_API_KEY) MODEL=$(MODEL) streamlit run app.py --server.headless true --server.address 0.0.0.0 --server.port 8080
