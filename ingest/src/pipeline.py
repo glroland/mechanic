@@ -26,7 +26,7 @@ PYTORCH_CUDA_IMAGE = "quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py312-ubi9@
 
 @dsl.component(
     base_image=PYTORCH_CUDA_IMAGE,
-    packages_to_install=["llama-stack-client==0.4.2", "fire", "requests"],
+    packages_to_install=["llama-stack-client==0.5.0", "fire", "requests"],
 )
 def register_vector_store_and_files(
     service_url: str,
@@ -147,7 +147,7 @@ def vector_store_files_pipeline(
     pdf_filenames: str = "c3_repair.pdf",
     vector_store_name: str = "mechanic_vector_db",
     service_url: str = "https://my-llama-stack-my-llama-stack.apps.ocp.home.glroland.com",
-    embedding_model_id: str = "ibm-granite/granite-embedding-125m-english",
+    embedding_model_id: str = "sentence-transformers/sentence-transformers/all-mpnet-base-v2",
     max_tokens: int = 2500,
     chunk_overlap_tokens: int = 64,
     use_gpu: bool = False,

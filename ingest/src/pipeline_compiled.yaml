@@ -4,7 +4,7 @@
 # Inputs:
 #    base_url: str [Default: 'https://raw.githubusercontent.com/glroland/mechanic/refs/heads/main/chatbot/src/assets']
 #    chunk_overlap_tokens: int [Default: 64.0]
-#    embedding_model_id: str [Default: 'ibm-granite/granite-embedding-125m-english']
+#    embedding_model_id: str [Default: 'sentence-transformers/sentence-transformers/all-mpnet-base-v2']
 #    max_tokens: int [Default: 2500.0]
 #    pdf_filenames: str [Default: 'c3_repair.pdf']
 #    service_url: str [Default: 'https://my-llama-stack-my-llama-stack.apps.ocp.home.glroland.com']
@@ -219,7 +219,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.4.2'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.5.0'\
           \ 'fire' 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
           \ 'kfp==2.14.6' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
@@ -314,7 +314,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.4.2'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.5.0'\
           \ 'fire' 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
           \ 'kfp==2.14.6' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
@@ -435,7 +435,7 @@ root:
         isOptional: true
         parameterType: NUMBER_INTEGER
       embedding_model_id:
-        defaultValue: ibm-granite/granite-embedding-125m-english
+        defaultValue: sentence-transformers/sentence-transformers/all-mpnet-base-v2
         description: Model ID for embedding generation
         isOptional: true
         parameterType: STRING
