@@ -36,6 +36,7 @@ def register_vector_store_and_files(
     chunk_overlap_tokens: int,
     base_url: str,
     pdf_filenames: str,
+    timeout: float,
 ):
     import io
     import requests
@@ -98,6 +99,7 @@ def register_vector_store_and_files(
     client.embeddings.create(
         model=embedding_model_id,
         input="warmup",
+        timeout=timeout,
     )
 
     # Create empty vector store first, before inserting files.
@@ -119,6 +121,7 @@ def register_vector_store_and_files(
                 "embedding_dimension": embedding_dimension,
                 "provider_id": "milvus",
             },
+            timeout=timeout,
         )
         print(
             f"Successfully created vector store '{vector_store_name}' with ID: {vector_store.id}"
@@ -134,6 +137,7 @@ def register_vector_store_and_files(
             client.vector_stores.files.create(
                 vector_store_id=vector_store.id,
                 file_id=file_id,
+                timeout=timeout,
             )
         vector_store = client.vector_stores.retrieve(vector_store.id)
         print(f"Vector store details: {vector_store}")
@@ -147,10 +151,11 @@ def vector_store_files_pipeline(
     pdf_filenames: str = "c3_repair.pdf",
     vector_store_name: str = "mechanic_vector_db",
     service_url: str = "https://my-llama-stack-my-llama-stack.apps.ocp.home.glroland.com",
-    embedding_model_id: str = "sentence-transformers/sentence-transformers/all-mpnet-base-v2",
+    embedding_model_id: str = "sentence-transformers/ibm-granite/granite-embedding-125m-english",
     max_tokens: int = 2500,
     chunk_overlap_tokens: int = 64,
     use_gpu: bool = False,
+    timeout: float = 5 * 60,
 ):
     """
     Creates a vector store with embeddings from PDF files from a GitHub source.
@@ -162,6 +167,7 @@ def vector_store_files_pipeline(
     :param max_tokens: Maximum number of tokens per chunk
     :param chunk_overlap_tokens: Number of overlapping tokens between chunks
     :param use_gpu: Enable GPU usage for embedding generation
+    :param timeout: Timeout to use for each LLama Stack API call
     :return:
     """
 
@@ -174,6 +180,7 @@ def vector_store_files_pipeline(
             chunk_overlap_tokens=chunk_overlap_tokens,
             base_url=base_url,
             pdf_filenames=pdf_filenames,
+            timeout=timeout,
         )
         register_task.set_caching_options(False)
         register_task.set_cpu_request("500m")
@@ -203,6 +210,7 @@ def vector_store_files_pipeline(
             chunk_overlap_tokens=chunk_overlap_tokens,
             base_url=base_url,
             pdf_filenames=pdf_filenames,
+            timeout=timeout,
         )
         register_task.set_caching_options(False)
         register_task.set_cpu_request("500m")
