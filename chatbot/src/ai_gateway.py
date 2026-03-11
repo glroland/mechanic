@@ -84,12 +84,8 @@ class AIGateway:
             instructions=AGENT_SYSTEM_PROMPT,
             input=user_input,
             temperature=0.3,
-            max_output_tokens=2048,
-            top_p=1,
             store=True,
-            #
-            #BUG = previous_response_id=self.previous_response_id,
-            #
+            previous_response_id=self.previous_response_id,
             stream=True,
             #tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
             #include=["file_search_call.results"]
