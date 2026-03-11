@@ -5,14 +5,21 @@ VECTORDB_PROVIDER := milvus
 
 OS := $(shell uname -s)
 
-install:
-	pip install -r chatbot/requirements.txt
-ifeq ($(OS),Darwin)
-	pip install -r corvetteforum-mcp/requirements.txt.mac
-	pip install -r ingest/requirements.txt.mac
+HAS_UV := $(shell command -v uv >/dev/null 2>&1; if [ $$? -eq 0 ]; then echo "true"; else echo "false"; fi)
+ifeq ($(HAS_UV), true)
+    PIP = uv pip
 else
-	pip install -r corvetteforum-mcp/requirements.txt.linux
-	pip install -r ingest/requirements.txt.linux
+    PIP = pip
+endif
+
+install:
+	$(PIP) install -r chatbot/requirements.txt
+ifeq ($(OS),Darwin)
+	$(PIP) install -r corvetteforum-mcp/requirements.txt.mac
+	$(PIP) install -r ingest/requirements.txt.mac
+else
+	$(PIP) install -r corvetteforum-mcp/requirements.txt.linux
+	$(PIP) install -r ingest/requirements.txt.linux
 endif
 
 clean:
