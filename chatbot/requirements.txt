@@ -6,3 +6,4 @@ requests
 openai
 fire
 streamlit-pdf
+git+https://github.com/red-hat-data-services/mlflow@rhoai-3.3
