@@ -9,3 +9,4 @@ data:
   OPENAI_BASE_URL: "http://my-llama-stack.my-llama-stack.svc:8080/v1"
   OPENAI_API_KEY: "nokeyneeded"
   MODEL: "together/openai/gpt-oss-120b"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://eclipse.home.glroland.com:4317"

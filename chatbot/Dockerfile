@@ -5,6 +5,9 @@ ENV LLAMA_STACK_URL "http://localhost:8321"
 ENV EMBEDDING_MODEL "sentence-transformers/all-mpnet-base-v2"
 ENV API_KEY = "nokeyneeded"
 ENV MODEL = "openai/gpt-4"
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+ENV OTEL_SERVICE_NAME=mechanic-chatbot
+ENV OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=false
 
 # By default, listen on port 8080
 EXPOSE 8080/tcp
