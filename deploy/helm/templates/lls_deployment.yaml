@@ -59,12 +59,14 @@ metadata:
   name: {{ include "mechanic.fullname" . }}-openai-responses-api
 spec:
   to:
-    kind: Service
     name: {{ include "mechanic.fullname" . }}-openai-responses-api
     weight: 100
+    kind: Service
   port:
     targetPort: http
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
+  path: ''
+  alternateBackends: []
