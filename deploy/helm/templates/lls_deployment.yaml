@@ -23,6 +23,8 @@ spec:
           value: granite-embedding-125m-english
         - name: EMBEDDING_PROVIDER_MODEL_ID
           value: ibm-granite/granite-embedding-125m-english
+        - name: LLS_PORT
+          value: '8321'
         - name: POSTGRES_HOST
           value: lls-postgresql
         - name: POSTGRES_PORT
@@ -43,7 +45,7 @@ spec:
               key: database-password
               name: lls-postgresql
       name: llama-stack
-      port: 8080
+      port: 8321
     distribution:
       name: 'rh-dev'
     storage:
