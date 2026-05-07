@@ -4,7 +4,7 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-useServiceAccount: false
+useServiceAccount: true
 
 global:
 

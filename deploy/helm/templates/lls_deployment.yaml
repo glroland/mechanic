@@ -48,3 +48,7 @@ spec:
       name: 'rh-dev'
     storage:
       size: 50Gi
+    {{ if eq .Values.global.useServiceAccount true }}
+    server:
+      serviceAccountName: {{ include "mechanic.fullname" . }}
+    {{ end }}
