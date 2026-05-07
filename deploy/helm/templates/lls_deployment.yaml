@@ -52,3 +52,19 @@ spec:
     server:
       serviceAccountName: {{ include "mechanic.fullname" . }}
     {{ end }}
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: {{ include "mechanic.fullname" . }}-openai-responses-api
+spec:
+  to:
+    kind: Service
+    name: openai-responses-api-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
