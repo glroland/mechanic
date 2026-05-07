@@ -5,17 +5,24 @@ the chatbot.
 """
 import os
 import logging
+import mlflow
+from mlflow.entities import SpanType
 import streamlit as st
 from openai import OpenAI
 from constants import AGENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+mlflow.openai.autolog()
+
 class AIGateway:
 
     ENV_OPENAI_BASE_URL = "OPENAI_BASE_URL"
     ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
     ENV_MODEL = "MODEL"
+
+    ENV_MLFLOW_EXPERIMENT_NAME = "MLFLOW_EXPERIMENT_NAME"
+    DEFAULT_EXPERIMENT_NAME = "mechanic.chatbot"
 
     MECHANIC_VECTOR_DB_NAME = "mechanic_vector_db"
 
@@ -29,6 +36,16 @@ class AIGateway:
 
     def connect(self):
         """ Connects to the remote service provider. """
+        # Configure MLflow tracing
+        experiment_name = os.environ.get(
+            self.ENV_MLFLOW_EXPERIMENT_NAME,
+            self.DEFAULT_EXPERIMENT_NAME
+        )
+        mlflow.set_experiment(experiment_name)
+        logger.info("MLflow experiment: %s", experiment_name)
+        mlflow.openai.autolog()
+        logger.info("MLflow OpenAI autologging enabled.")
+
         # get the base url
         if not self.ENV_OPENAI_BASE_URL in os.environ:
             msg = "OpenAI Base URL has not been set and is a required variable. 'OPENAI_BASE_URL' missing."
@@ -63,6 +80,7 @@ class AIGateway:
             raise ValueError(msg)
         logger.info("OpenAI Model: %s", self.model)
 
+    @mlflow.trace(span_type=SpanType.CHAT_MODEL)
     def process_user_chat(self, user_input: str, placeholder) -> str:
         """ Process a chat request.
         
@@ -71,6 +89,11 @@ class AIGateway:
             
             Returns: Chat response
         """
+        # store inputs
+        span = mlflow.get_current_active_span()
+        if span is not None:
+            span.set_inputs({"user_input": user_input})
+
         # Log the user chat and systems prompt
         logger.info("System Prompt: %s", AGENT_SYSTEM_PROMPT)
         logger.info("User Input: %s", user_input)
@@ -84,12 +107,8 @@ class AIGateway:
             instructions=AGENT_SYSTEM_PROMPT,
             input=user_input,
             temperature=0.3,
-            max_output_tokens=2048,
-            top_p=1,
             store=True,
-            #
-            #BUG = previous_response_id=self.previous_response_id,
-            #
+            previous_response_id=self.previous_response_id,
             stream=True,
             #tools=[{"type": "file_search", "vector_store_ids": [vs_id]}],
             #include=["file_search_call.results"]
@@ -139,11 +158,17 @@ class AIGateway:
         parts = os.path.split(self.model)
         return parts[len(parts) - 1]
 
+    @mlflow.trace(span_type=SpanType.RETRIEVER)
     def rag_search(self, query:str, max_matches:int=None):
         """ Searches the vector store for a match to the provided user query. 
         
             query - user query
         """
+        # store inputs
+        span = mlflow.get_current_active_span()
+        if span is not None:
+            span.set_inputs({"query": query, "max_matches": max_matches})
+
         # get vector store
         vector_store_id = self.get_vector_store_id()
 
