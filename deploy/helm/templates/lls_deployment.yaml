@@ -60,7 +60,7 @@ metadata:
 spec:
   to:
     kind: Service
-    name: openai-responses-api-service
+    name: {{ include "mechanic.fullname" . }}-openai-responses-api
     weight: 100
   port:
     targetPort: http
