@@ -23,8 +23,6 @@ spec:
           value: granite-embedding-125m-english
         - name: EMBEDDING_PROVIDER_MODEL_ID
           value: ibm-granite/granite-embedding-125m-english
-        - name: LLS_PORT
-          value: '8321'
         - name: POSTGRES_HOST
           value: lls-postgresql
         - name: POSTGRES_PORT
