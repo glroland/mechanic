@@ -24,7 +24,7 @@ spec:
         - name: EMBEDDING_PROVIDER_MODEL_ID
           value: ibm-granite/granite-embedding-125m-english
         - name: POSTGRES_HOST
-          value: lls-postgresql.sandbox.svc.cluster.local
+          value: lls-postgresql
         - name: POSTGRES_PORT
           value: '5432'
         - name: POSTGRES_DB
