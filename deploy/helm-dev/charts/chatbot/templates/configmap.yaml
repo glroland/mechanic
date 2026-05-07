@@ -6,6 +6,6 @@ metadata:
     {{- include "mechanic.labels" . | nindent 4 }}
 immutable: false
 data:
-  OPENAI_BASE_URL: "http://my-llama-stack.my-llama-stack.svc:8080/v1"
+  OPENAI_BASE_URL: "{{ include "mechanic.fullname" . }}-openai-responses-api/v1"
   OPENAI_API_KEY: "nokeyneeded"
-  MODEL: "together/openai/gpt-oss-120b"
+  MODEL: "vllm-inference/gemma-4"

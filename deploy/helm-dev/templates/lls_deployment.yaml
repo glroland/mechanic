@@ -1,0 +1,50 @@
+apiVersion: llamastack.io/v1alpha1
+kind: LlamaStackDistribution
+metadata:
+  name: {{ include "mechanic.fullname" . }}-openai-responses-api
+spec:
+  replicas: 1
+  server:
+    containerSpec:
+      env:
+        - name: VLLM_URL
+          value: 'http://gemma-4-predictor.sandbox.svc.cluster.local:8080/v1'
+        - name: VLLM_TLS_VERIFY
+          value: 'false'
+        - name: VLLM_API_TOKEN
+          value: 'fake'
+        - name: INFERENCE_MODEL
+          value: gemma-4
+        - name: ENABLE_SENTENCE_TRANSFORMERS
+          value: 'true'
+        - name: EMBEDDING_PROVIDER
+          value: sentence-transformers
+        - name: EMBEDDING_MODEL
+          value: granite-embedding-125m-english
+        - name: EMBEDDING_PROVIDER_MODEL_ID
+          value: ibm-granite/granite-embedding-125m-english
+        - name: POSTGRES_HOST
+          value: lls-postgresql.sandbox.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: '5432'
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              key: database-name
+              name: lls-postgresql
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              key: database-user
+              name: lls-postgresql
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database-password
+              name: lls-postgresql
+      name: llama-stack
+      port: 8321
+    distribution:
+      name: 'rh-dev'
+    storage:
+      size: 50Gi
