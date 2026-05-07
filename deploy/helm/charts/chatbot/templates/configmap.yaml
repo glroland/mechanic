@@ -6,7 +6,7 @@ metadata:
     {{- include "mechanic.labels" . | nindent 4 }}
 immutable: false
 data:
-  OPENAI_BASE_URL: "http://gemma-4-predictor.sandbox.svc.cluster.local:8080/v1"
+  OPENAI_BASE_URL: "http://{{ include "mechanic.fullname" . }}-openai-responses-api:8321/v1"
   OPENAI_API_KEY: "nokeyneeded"
-  MODEL: "gemma-4"
+  MODEL: "vllm-inference/gemma-4"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://eclipse.home.glroland.com:4317"

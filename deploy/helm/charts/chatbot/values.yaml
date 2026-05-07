@@ -30,16 +30,5 @@ autoscaling:
     type: Utilization
     averageUtilization: 80
 
-securityContext:
-  allowPrivilegeEscalation: false
-  privileged: false
-  readOnlyRootFilesystem: false  #Java tmp dir
-  runAsNonRoot: true
-  seccompProfile:
-    type: RuntimeDefault
-  capabilities:
-    drop:
-      - ALL
-
 podAnnotations:
   sidecar.istio.io/inject: 'true'
