@@ -43,7 +43,7 @@ spec:
               key: database-password
               name: lls-postgresql
       name: llama-stack
-      port: 8321
+      port: 8080
     distribution:
       name: 'rh-dev'
     storage:
