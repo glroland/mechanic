@@ -8,7 +8,7 @@ spec:
     containerSpec:
       env:
         - name: VLLM_URL
-          value: 'http://gemma-4-predictor.sandbox.svc.cluster.local:8080/v1'
+          value: 'https://gemma-4-kserve-workload-svc.sandbox.svc.cluster.local:8000/v1'
         - name: VLLM_TLS_VERIFY
           value: 'false'
         - name: VLLM_API_TOKEN

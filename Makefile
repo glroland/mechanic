@@ -1,6 +1,6 @@
-OPENAI_BASE_URL := https://my-llama-stack-my-llama-stack.apps.ocp.home.glroland.com/v1/
-MODEL := together/openai/gpt-oss-120b
-EMBEDDING_MODEL := sentence-transformers/sentence-transformers/all-mpnet-base-v2
+OPENAI_BASE_URL := https://mechanic-openai-responses-api-mechanic.apps.ocp.home.glroland.com/v1/
+MODEL := vllm-inference/gemma-4
+EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
 VECTORDB_PROVIDER := milvus
 
 MLFLOW_TRACKING_URI := https://data-science-gateway.apps.ocp.home.glroland.com/mlflow
