@@ -61,7 +61,7 @@ metadata:
   name: {{ include "mechanic.fullname" . }}-openai-responses-api
 spec:
   to:
-    name: {{ include "mechanic.fullname" . }}-openai-responses-api
+    name: {{ include "mechanic.fullname" . }}-openai-responses-api-service
     weight: 100
     kind: Service
   port:
