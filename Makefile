@@ -1,6 +1,6 @@
 OPENAI_BASE_URL := https://mechanic-openai-responses-api-mechanic.apps.ocp.home.glroland.com/v1/
 MODEL := vllm-inference/gemma-4
-EMBEDDING_MODEL := ibm-granite/granite-embedding-125m-english
+EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
 VECTORDB_PROVIDER := milvus
 
 MLFLOW_TRACKING_URI := https://data-science-gateway.apps.ocp.home.glroland.com/mlflow
@@ -47,5 +47,5 @@ run-corvetteforummcp:
 compile-pipeline:
 	cd ingest/src && python pipeline.py
 
-test:
+vectorize:
 	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../target/data/c3_repair.md

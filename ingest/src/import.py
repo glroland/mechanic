@@ -143,10 +143,10 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
         name=MECHANIC_VECTOR_DB_NAME,
         chunking_strategy={
             'type': 'static',
-            #'static': {
-            #    'max_chunk_size_tokens': 1000,  # Set maximum chunk size to 1000 tokens
-            #    'chunk_overlap_tokens': 200     # Set chunk overlap to 200 tokens
-            #}
+            'static': {
+                'max_chunk_size_tokens': 1000,  # Set maximum chunk size to 1000 tokens
+                'chunk_overlap_tokens': 200     # Set chunk overlap to 200 tokens
+            }
         },
         extra_body={
             "provider_id": vdb_provider,
