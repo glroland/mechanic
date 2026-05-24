@@ -4,6 +4,15 @@ metadata:
   name: {{ include "mechanic.fullname" . }}-openai-responses-api
 spec:
   replicas: 1
+  workload:
+    overrides:
+      env:
+        - name: ENABLE_INLINE_MILVUS
+          value: "true"
+  providers:
+    vector_io:
+      - provider_id: inline-milvus
+        provider_type: inline::milvus
   server:
     containerSpec:
       env:
