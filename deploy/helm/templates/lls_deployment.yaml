@@ -70,5 +70,3 @@ spec:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
-  path: ''
-  alternateBackends: []
