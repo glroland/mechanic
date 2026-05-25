@@ -29,10 +29,10 @@ spec:
           value: 'http://db.home.glroland.com:19530'
         - name: MILVUS_TOKEN
           value: "root:Milvus"
-        #- name: MILVUS_SECURE
-        #  value: "false"
-        #- name: MILVUS_CONSISTENCY_LEVEL
-        #  value: ""
+        - name: MILVUS_SECURE
+          value: "false"
+        - name: MILVUS_CONSISTENCY_LEVEL
+          value: "Bounded"
         - name: POSTGRES_HOST
           value: lls-postgresql
         - name: POSTGRES_PORT
