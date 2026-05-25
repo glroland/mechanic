@@ -25,6 +25,14 @@ spec:
           value: ibm-granite/granite-embedding-125m-english
         - name: ENABLE_INLINE_MILVUS
           value: 'true'
+        - name: MILVUS_ENDPOINT
+          value: 'http://db.home.glroland.com:19530'
+        - name: MILVUS_TOKEN
+          value: "root:Milvus"
+        #- name: MILVUS_SECURE
+        #  value: "false"
+        #- name: MILVUS_CONSISTENCY_LEVEL
+        #  value: ""
         - name: POSTGRES_HOST
           value: lls-postgresql
         - name: POSTGRES_PORT
