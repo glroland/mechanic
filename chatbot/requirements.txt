@@ -9,4 +9,4 @@ streamlit-pdf
 opentelemetry-distro
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-requests
-git+https://github.com/red-hat-data-services/mlflow@rhoai-3.3
+git+https://github.com/red-hat-data-services/mlflow@rhoai-3.4
