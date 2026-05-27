@@ -62,6 +62,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_TRACKING_URI
+            - name: MLFLOW_EXPERIMENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "mechanic.fullname" . }}
+                  key: MLFLOW_EXPERIMENT_ID
             - name: MLFLOW_TRACKING_TOKEN
               valueFrom:
                 configMapKeyRef:
@@ -77,6 +82,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_TRACKING_HEADERS
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "mechanic.fullname" . }}
+                  key: OTEL_EXPORTER_OTLP_HEADERS
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           readinessProbe:
