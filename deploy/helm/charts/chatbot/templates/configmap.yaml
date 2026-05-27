@@ -14,5 +14,6 @@ data:
   MLFLOW_TRACKING_URI: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443"
   MLFLOW_EXPERIMENT_ID: "mechanic-chatbot"
   MLFLOW_TRACKING_HEADERS: "X-MLFLOW-WORKSPACE: mechanic"
+  MLFLOW_WORKSPACE: "mechanic"
   MLFLOW_TRACKING_TOKEN: "x-mlflow-workspace=mechanic,Authorization=Bearer nokeyneeded"
   SET_TOKEN_FROM_FILE: "/var/run/secrets/kubernetes.io/serviceaccount/token"
