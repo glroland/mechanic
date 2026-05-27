@@ -13,4 +13,4 @@ data:
   MLFLOW_TRACKING_URI: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443"
   MLFLOW_TRACKING_TOKEN: ""
   SET_TOKEN_FROM_FILE: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-  MLFLOW_TRACKING_HEADERS: '{"x-mlflow-workspace": "mechanic"}'
+  MLFLOW_TRACKING_HEADERS: "{\"x-mlflow-workspace\": \"mechanic\"}""
