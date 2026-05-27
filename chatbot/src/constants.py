@@ -44,3 +44,10 @@ class MessageAttributes:
     USER = "user"
     ASSISTANT = "assistant"
     CONTENT = "content"
+
+# pylint: disable=too-few-public-methods
+class EnvironmentVariables:
+    """ Environment Variables """
+
+    MLFLOW_TRACKING_TOKEN = "MLFLOW_TRACKING_TOKEN"
+    SET_TOKEN_FROM_FILE = "SET_TOKEN_FROM_FILE"

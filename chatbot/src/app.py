@@ -2,6 +2,7 @@
 
 Digital expert in fixing old corvettes
 """
+import os
 import logging
 import base64
 import streamlit as st
@@ -9,6 +10,7 @@ from constants import SessionStateVariables
 from constants import AppUserInterfaceElements
 from constants import CannedGreetings
 from constants import MessageAttributes
+from constants import EnvironmentVariables
 from ai_gateway import AIGateway
 
 logger = logging.getLogger(__name__)
@@ -18,6 +20,25 @@ logging.basicConfig(level=logging.INFO,
         # no need from a docker container - logging.FileHandler("mechanic-chatbot.log"),
         logging.StreamHandler()
     ])
+
+# Prepare the MLFlow security token
+if EnvironmentVariables.MLFLOW_TRACKING_TOKEN not in os.environ or \
+        os.environ[EnvironmentVariables.MLFLOW_TRACKING_TOKEN] is None or \
+        len(os.environ[EnvironmentVariables.MLFLOW_TRACKING_TOKEN]) == 0:
+    logger.warning("MLFlow Token Not Set...")
+
+    token_file_path = None
+    if EnvironmentVariables.SET_TOKEN_FROM_FILE in os.environ:
+        token_file_path = os.environ[EnvironmentVariables.SET_TOKEN_FROM_FILE]
+    if token_file_path is not None and len(token_file_path) > 0:
+        if os.path.exists(token_file_path):
+            with open(token_file_path, "r") as f:
+                # Strip whitespace/newlines to avoid HTTP header parsing bugs
+                os.environ[EnvironmentVariables.MLFLOW_TRACKING_TOKEN] = f.read().strip()
+        else:
+            logger.error("MLFlow Token File is set but the file does not exist!  Filename = %s", token_file_path)
+    else:
+        logger.warning("MLFlow Token File Path Not Set Either!")
 
 # Prepare engine bay photo
 def get_base64_of_bin_file(bin_file):

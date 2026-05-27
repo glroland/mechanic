@@ -3,11 +3,9 @@ MODEL := vllm-inference/gemma-4
 EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
 VECTORDB_PROVIDER := milvus
 
-MLFLOW_TRACKING_URI := https://data-science-gateway.apps.ocp.home.glroland.com/mlflow
+MLFLOW_TRACKING_URI := http://localhost:8080/mlflow
 MLFLOW_WORKSPACE := mechanic
 MLFLOW_TRACKING_TOKEN := $(shell oc whoami --show-token)
-
-OS := $(shell uname -s)
 
 HAS_UV := $(shell command -v uv >/dev/null 2>&1; if [ $$? -eq 0 ]; then echo "true"; else echo "false"; fi)
 ifeq ($(HAS_UV), true)
@@ -18,13 +16,8 @@ endif
 
 install:
 	$(PIP) install -r chatbot/requirements.txt
-ifeq ($(OS),Darwin)
-	$(PIP) install -r corvetteforum-mcp/requirements.txt.mac
-	$(PIP) install -r ingest/requirements.txt.mac
-else
-	$(PIP) install -r corvetteforum-mcp/requirements.txt.linux
-	$(PIP) install -r ingest/requirements.txt.linux
-endif
+	$(PIP) install -r corvetteforum-mcp/requirements.txt
+	$(PIP) install -r ingest/requirements.txt
 
 clean:
 	rm -rf target
