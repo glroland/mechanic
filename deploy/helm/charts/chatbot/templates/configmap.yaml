@@ -12,6 +12,7 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://eclipse.home.glroland.com:4317"
   OTEL_EXPORTER_OTLP_HEADERS: ""
   MLFLOW_TRACKING_URI: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443"
+  MLFLOW_TRACKING_AUTH: "kubernetes-namespaced"
   MLFLOW_EXPERIMENT_ID: "mechanic-chatbot"
   MLFLOW_TRACKING_HEADERS: "X-MLFLOW-WORKSPACE: mechanic"
   MLFLOW_WORKSPACE: "mechanic"

@@ -62,6 +62,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_TRACKING_URI
+            - name: MLFLOW_TRACKING_AUTH
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "mechanic.fullname" . }}
+                  key: MLFLOW_TRACKING_AUTH
             - name: MLFLOW_WORKSPACE
               valueFrom:
                 configMapKeyRef:
