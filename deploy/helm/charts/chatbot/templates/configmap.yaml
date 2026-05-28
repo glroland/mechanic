@@ -7,6 +7,7 @@ metadata:
 immutable: false
 data:
   OPENAI_BASE_URL: "https://{{ include "mechanic.fullname" . }}-openai-responses-api-service.mechanic.svc.cluster.local:8321/v1"
+  OPENAI_API_KEY: "no_key_needed"
   MODEL: "vllm-inference/gemma-4"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://eclipse.home.glroland.com:4317"
   OTEL_EXPORTER_OTLP_HEADERS: ""
