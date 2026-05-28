@@ -11,10 +11,9 @@ spec:
         - name: llama-storage-volume
           persistentVolumeClaim:
             claimName: "{{ include "mechanic.fullname" . }}-pvc"
-      container:
-        volumeMounts:
-          - name: llama-storage-volume
-            mountPath: /opt/app-root/src/.llama
+      volumeMounts:
+        - name: llama-storage-volume
+          mountPath: /opt/app-root/src/.llama
     containerSpec:
       env:
         - name: VLLM_URL
