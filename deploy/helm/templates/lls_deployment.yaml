@@ -69,7 +69,7 @@ spec:
 kind: Route
 apiVersion: route.openshift.io/v1
 metadata:
-  name: {{ include "mechanic.fullname" . }}-openai-responses-api
+  name: {{ .Release.Name }}-openai-responses-api
 spec:
   to:
     name: {{ include "mechanic.fullname" . }}-openai-responses-api-service
