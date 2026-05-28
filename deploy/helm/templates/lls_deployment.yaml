@@ -7,6 +7,14 @@ spec:
   server:
     podOverrides:
       serviceAccountName: "{{ .Release.Name }}-mechanic-sa"
+      volumes:
+        - name: llama-storage-volume
+          persistentVolumeClaim:
+            claimName: "{{ include "mechanic.fullname" . }}-pvc"
+      container:
+        volumeMounts:
+          - name: llama-storage-volume
+            mountPath: /.llama
     containerSpec:
       env:
         - name: VLLM_URL
@@ -60,10 +68,6 @@ spec:
       name: 'rh-dev'
     storage:
       size: 50Gi
-    {{ if eq .Values.global.useServiceAccount true }}
-    server:
-      serviceAccountName: {{ include "mechanic.fullname" . }}
-    {{ end }}
 ---
 kind: Route
 apiVersion: route.openshift.io/v1
