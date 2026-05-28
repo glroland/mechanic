@@ -5,6 +5,8 @@ metadata:
 spec:
   replicas: 1
   server:
+    podOverrides:
+      serviceAccountName: "{{ .Release.Name }}-mechanic-sa"
     containerSpec:
       env:
         - name: VLLM_URL
