@@ -14,7 +14,7 @@ spec:
       container:
         volumeMounts:
           - name: llama-storage-volume
-            mountPath: /.llama
+            mountPath: /opt/app-root/src/.llama
     containerSpec:
       env:
         - name: VLLM_URL
@@ -66,8 +66,6 @@ spec:
       port: 8321
     distribution:
       name: 'rh-dev'
-    storage:
-      size: 50Gi
 ---
 kind: Route
 apiVersion: route.openshift.io/v1
