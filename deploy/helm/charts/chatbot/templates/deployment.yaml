@@ -65,36 +65,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_TRACKING_AUTH
-            - name: MLFLOW_WORKSPACE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mechanic.fullname" . }}
-                  key: MLFLOW_WORKSPACE
             - name: MLFLOW_EXPERIMENT_ID
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_EXPERIMENT_ID
-            - name: MLFLOW_TRACKING_TOKEN
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mechanic.fullname" . }}
-                  key: MLFLOW_TRACKING_TOKEN
-            - name: SET_TOKEN_FROM_FILE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mechanic.fullname" . }}
-                  key: SET_TOKEN_FROM_FILE
-            - name: MLFLOW_TRACKING_HEADERS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mechanic.fullname" . }}
-                  key: MLFLOW_TRACKING_HEADERS
-            - name: OTEL_EXPORTER_OTLP_HEADERS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mechanic.fullname" . }}
-                  key: OTEL_EXPORTER_OTLP_HEADERS
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           readinessProbe:

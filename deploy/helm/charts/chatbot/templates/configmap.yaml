@@ -6,15 +6,10 @@ metadata:
     {{- include "mechanic.labels" . | nindent 4 }}
 immutable: false
 data:
-  OPENAI_BASE_URL: "https://{{ include "mechanic.fullname" . }}-openai-responses-api-mechanic.apps.ocp.home.glroland.com/v1"
-  OPENAI_API_KEY: "nokeyneeded"
+  OPENAI_BASE_URL: "https://{{ include "mechanic.fullname" . }}-openai-responses-api-service.mechanic.svc.cluster.local:8321/v1"
   MODEL: "vllm-inference/gemma-4"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://eclipse.home.glroland.com:4317"
   OTEL_EXPORTER_OTLP_HEADERS: ""
-  MLFLOW_TRACKING_URI: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443"
+  MLFLOW_TRACKING_URI: "https://rh-ai.apps.ocp.home.glroland.com/mlflow"
   MLFLOW_TRACKING_AUTH: "kubernetes-namespaced"
   MLFLOW_EXPERIMENT_ID: "mechanic-chatbot"
-  MLFLOW_TRACKING_HEADERS: "X-MLFLOW-WORKSPACE: mechanic"
-  MLFLOW_WORKSPACE: "mechanic"
-  MLFLOW_TRACKING_TOKEN: "x-mlflow-workspace=mechanic,Authorization=Bearer nokeyneeded"
-  SET_TOKEN_FROM_FILE: "/var/run/secrets/kubernetes.io/serviceaccount/token"
