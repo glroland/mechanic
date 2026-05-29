@@ -5,9 +5,6 @@ watchdog
 requests
 openai
 fire
-opentelemetry-distro
-opentelemetry-exporter-otlp
-opentelemetry-instrumentation-requests
 kubernetes
 mlflow
 
