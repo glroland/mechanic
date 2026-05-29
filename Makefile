@@ -1,10 +1,11 @@
-OPENAI_BASE_URL := https://mechanic-openai-responses-api-mechanic.apps.ocp.home.glroland.com/v1/
+OPENAI_BASE_URL := https://mechanic-openai-responses-api-mechanic.apps.ocp.home.glroland.com/v1
 MODEL := vllm-inference/gemma-4
 EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
 VECTORDB_PROVIDER := milvus
 
-MLFLOW_TRACKING_URI := http://localhost:8080/mlflow
+MLFLOW_TRACKING_URI := https://rh-ai.apps.ocp.home.glroland.com/mlflow
 MLFLOW_WORKSPACE := mechanic
+MLFLOW_EXPERIMENT_ID := mechanic-chatbot-local
 MLFLOW_TRACKING_TOKEN := $(shell oc whoami --show-token)
 
 HAS_UV := $(shell command -v uv >/dev/null 2>&1; if [ $$? -eq 0 ]; then echo "true"; else echo "false"; fi)
@@ -32,7 +33,7 @@ run-chatbot:
 	@echo
 	@echo MLFlow Token: $(MLFLOW_TRACKING_TOKEN)
 	@echo
-	cd chatbot/src && MLFLOW_TRACKING_URI=$(MLFLOW_TRACKING_URI) MLFLOW_WORKSPACE=$(MLFLOW_WORKSPACE) MLFLOW_TRACKING_TOKEN=$(MLFLOW_TRACKING_TOKEN) OPENAI_BASE_URL=$(OPENAI_BASE_URL) OPENAI_API_KEY=$(OPENAI_API_KEY) MODEL=$(MODEL) streamlit run app.py --server.headless true --server.address 0.0.0.0 --server.port 8080
+	cd chatbot/src && MLFLOW_TRACKING_URI=$(MLFLOW_TRACKING_URI) MLFLOW_WORKSPACE=$(MLFLOW_WORKSPACE) MLFLOW_EXPERIMENT_ID=$(MLFLOW_EXPERIMENT_ID) MLFLOW_TRACKING_TOKEN=$(MLFLOW_TRACKING_TOKEN) OPENAI_BASE_URL=$(OPENAI_BASE_URL) OPENAI_API_KEY=$(OPENAI_API_KEY) MODEL=$(MODEL) streamlit run app.py --server.headless true --server.address 0.0.0.0 --server.port 8080
 
 run-corvetteforummcp:
 	cd corvetteforum-mcp/src && python app.py

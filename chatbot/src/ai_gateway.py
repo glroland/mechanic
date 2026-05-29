@@ -5,15 +5,15 @@ the chatbot.
 """
 import os
 import logging
-import mlflow
-from mlflow.entities import SpanType
 import streamlit as st
-from openai import OpenAI
 from constants import AGENT_SYSTEM_PROMPT
 
-logger = logging.getLogger(__name__)
-
+import mlflow
+from mlflow.entities import SpanType
 mlflow.openai.autolog()
+from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 class AIGateway:
 
