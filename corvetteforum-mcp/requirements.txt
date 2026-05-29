@@ -4,4 +4,6 @@ mcp[cli]
 requests
 uvicorn
 docling
+
+--extra-index-url https://pypi.org/simple/
 mrkdwn_analysis

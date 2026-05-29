@@ -5,6 +5,7 @@ Digital expert in fixing old corvettes
 import os
 import logging
 import base64
+import mlflow
 import streamlit as st
 from constants import SessionStateVariables
 from constants import AppUserInterfaceElements
@@ -15,11 +16,18 @@ from ai_gateway import AIGateway
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO,
+log_level = logging.INFO
+if EnvironmentVariables.LOG_LEVEL in os.environ:
+    if os.environ[EnvironmentVariables.LOG_LEVEL] is not None and len(os.environ[EnvironmentVariables.LOG_LEVEL]) > 0:
+        log_level = os.environ[EnvironmentVariables.LOG_LEVEL]
+logging.basicConfig(level=log_level,
     handlers=[
         # no need from a docker container - logging.FileHandler("mechanic-chatbot.log"),
         logging.StreamHandler()
     ])
+logger.info("Logging initialized.")
+mlflow_logger = logger = logging.getLogger("mlflow")
+logger.setLevel(log_level)
 
 # Prepare the MLFlow security token
 if EnvironmentVariables.MLFLOW_TRACKING_TOKEN not in os.environ or \

@@ -1,6 +1,7 @@
 FROM registry.access.redhat.com/ubi9/python-312:9.6-1760372467
 
 # Configuration
+ENV LOG_LEVEL = "INFO"
 ENV LLAMA_STACK_URL "http://localhost:8321"
 ENV EMBEDDING_MODEL "sentence-transformers/all-mpnet-base-v2"
 ENV API_KEY = "nokeyneeded"

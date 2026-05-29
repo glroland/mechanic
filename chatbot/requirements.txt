@@ -5,9 +5,11 @@ watchdog
 requests
 openai
 fire
-streamlit-pdf
 opentelemetry-distro
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-requests
 kubernetes
 mlflow
+
+--extra-index-url https://pypi.org/simple/
+streamlit-pdf
