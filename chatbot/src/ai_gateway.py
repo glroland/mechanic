@@ -36,16 +36,6 @@ class AIGateway:
 
     def connect(self):
         """ Connects to the remote service provider. """
-        # Configure MLflow tracing
-        experiment_name = os.environ.get(
-            self.ENV_MLFLOW_EXPERIMENT_NAME,
-            self.DEFAULT_EXPERIMENT_NAME
-        )
-        mlflow.set_experiment(experiment_name)
-        logger.info("MLflow experiment: %s", experiment_name)
-        mlflow.openai.autolog()
-        logger.info("MLflow OpenAI autologging enabled.")
-
         # get the base url
         if not self.ENV_OPENAI_BASE_URL in os.environ:
             msg = "OpenAI Base URL has not been set and is a required variable. 'OPENAI_BASE_URL' missing."
