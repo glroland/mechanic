@@ -35,6 +35,8 @@ spec:
           ports:
           - containerPort: {{ .Values.image.port }}
           env:
+            - name: LOG_LEVEL
+              value: "DEBUG"
             - name: OPENAI_BASE_URL
               valueFrom:
                 configMapKeyRef:
