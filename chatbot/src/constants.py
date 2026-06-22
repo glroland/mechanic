@@ -17,6 +17,7 @@ class SessionStateVariables:
     MODEL = "model"
     GATEWAY = "gateway"
     RESPONSES = "responses"
+    MLFLOW_RUN_ID = "mlflow_run_id"
 
 # pylint: disable=too-few-public-methods
 class AppUserInterfaceElements:

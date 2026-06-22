@@ -3,6 +3,7 @@
 Digital expert in fixing old corvettes
 """
 import os
+import uuid
 import logging
 import base64
 import mlflow
@@ -66,6 +67,13 @@ if SessionStateVariables.MESSAGES not in st.session_state:
     logger.info("Clearing message history.")
     st.session_state[SessionStateVariables.MESSAGES] = []
 
+    experiment_name = os.environ.get(AIGateway.ENV_MLFLOW_EXPERIMENT_NAME, AIGateway.DEFAULT_EXPERIMENT_NAME)
+    mlflow.set_experiment(experiment_name)
+    session_tag = uuid.uuid4().hex[:8]
+    with mlflow.start_run(run_name=f"chat-{session_tag}") as run:
+        st.session_state[SessionStateVariables.MLFLOW_RUN_ID] = run.info.run_id
+    logger.info("MLflow session run created: %s", st.session_state[SessionStateVariables.MLFLOW_RUN_ID])
+
 # Rehydrate global variables from session state
 gateway = st.session_state[SessionStateVariables.GATEWAY]
 
@@ -122,23 +130,24 @@ if user_input := st.chat_input():
     st.session_state.messages.append({"role": "user", "content": user_input})
     logger.info ("st.session_state.messages - %s", st.session_state.messages)
 
-    # Search VDB for relevant content
-    logger.debug("Searching Vector Store for enriched content...")
-    matching_content = gateway.rag_search(user_input)
-    expanded_user_input = ""
-    if matching_content is not None and len(matching_content) > 0:
-        expanded_user_input += "Context:\n"
-        for c in matching_content:
-            expanded_user_input += c + "\n"
-        expanded_user_input += "\nQuestion:\n"
-    expanded_user_input += user_input
-    logger.info("Expanded User Prompt: %s", expanded_user_input)
+    # Search VDB for relevant content and process chat, grouped under the session run
+    with mlflow.start_run(run_id=st.session_state[SessionStateVariables.MLFLOW_RUN_ID]):
+        logger.debug("Searching Vector Store for enriched content...")
+        matching_content = gateway.rag_search(user_input)
+        expanded_user_input = ""
+        if matching_content is not None and len(matching_content) > 0:
+            expanded_user_input += "Context:\n"
+            for c in matching_content:
+                expanded_user_input += c + "\n"
+            expanded_user_input += "\nQuestion:\n"
+        expanded_user_input += user_input
+        logger.info("Expanded User Prompt: %s", expanded_user_input)
 
-    # Process chat
-    ai_response = None
-    with messages.chat_message(MessageAttributes.ASSISTANT):
-        placeholder = st.empty()
-        ai_response = gateway.process_user_chat(expanded_user_input, placeholder)
+        # Process chat
+        ai_response = None
+        with messages.chat_message(MessageAttributes.ASSISTANT):
+            placeholder = st.empty()
+            ai_response = gateway.process_user_chat(expanded_user_input, placeholder)
     logger.info ("AI Response Message: %s", ai_response)
 
     # Append AI Response to history
