@@ -45,4 +45,4 @@ compile-pipeline:
 	cd ingest/src && python pipeline.py
 
 vectorize:
-	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../target/data/c3_repair.md
+	cd ingest/src && OPENAI_API_KEY=$(OPENAI_API_KEY) python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../chatbot/src/assets/c3_repair.md
