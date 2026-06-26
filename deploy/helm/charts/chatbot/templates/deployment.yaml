@@ -67,6 +67,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mechanic.fullname" . }}
                   key: MLFLOW_EXPERIMENT_ID
+            - name: MLFLOW_EXPERIMENT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "mechanic.fullname" . }}
+                  key: MLFLOW_EXPERIMENT_NAME              
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           readinessProbe:
