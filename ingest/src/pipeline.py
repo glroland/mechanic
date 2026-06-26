@@ -9,7 +9,7 @@ PYTORCH_CUDA_IMAGE = "quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py312-ubi9@
 
 @dsl.component(
     base_image=PYTORCH_CUDA_IMAGE,
-    packages_to_install=["llama-stack-client==0.5.0", "fire", "requests"],
+    packages_to_install=["llama-stack-client==0.7.1", "fire", "requests"],
 )
 def register_vector_store_and_files(
     service_url: str,
