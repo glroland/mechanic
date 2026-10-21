@@ -2,7 +2,7 @@ OPENAI_BASE_URL := http://mechanic-openai-responses-api-service:8321/v1
 OPENAI_API_KEY := nokeyneeded
 MODEL := vllm-inference/gemma-4
 EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
-VECTORDB_PROVIDER := milvus
+VECTORDB_PROVIDER := milvus-remote
 
 MLFLOW_TRACKING_URI := https://rh-ai.apps.ocp.home.glroland.com/mlflow
 MLFLOW_WORKSPACE := mechanic
@@ -29,7 +29,7 @@ clean:
 ingest-data:
 	mkdir -p target/data
 	cd target/data && docling --from pdf --to json --to md --image-export-mode referenced --ocr --output . --abort-on-error ../../chatbot/src/assets/c3_repair.pdf
-	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) mechanic_vector_db ../../target/data/c3_repair.md
+	cd ingest/src && python import.py $(OPENAI_BASE_URL) $(EMBEDDING_MODEL) $(VECTORDB_PROVIDER) ../../target/data/c3_repair.md
 
 run-chatbot:
 	@echo MLFlow Tracking URI: $(MLFLOW_TRACKING_URI)
