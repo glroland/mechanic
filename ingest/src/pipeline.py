@@ -336,12 +336,13 @@ def register_vector_store_and_files(
                 "embedding_model": embedding_model_id,
                 "embedding_dimension": embedding_dimension,
                 # Must match the vector_io provider_id actually registered
-                # on the server (deploy/helm/templates/ogx-config.yaml),
-                # not just the provider_type - confirmed live 2026-10-21:
-                # "milvus" (stale, pre-OGX-migration value) failed with
-                # "Provider `milvus` not found"; the registered provider_id
-                # is "milvus-remote".
-                "provider_id": "milvus-remote",
+                # on the server (deploy/helm/templates/ogx-config.yaml), not
+                # just the provider_type. This was "milvus-remote" while the
+                # server ran remote::milvus against db.home.glroland.com;
+                # switched back to "milvus" (now inline::milvus, an embedded
+                # Milvus Lite file on the OGX pod's PVC) after the remote
+                # Milvus server's downtime took out an AutoRAG evaluation run.
+                "provider_id": "milvus",
             },
             _request_timeout=timeout,
         )

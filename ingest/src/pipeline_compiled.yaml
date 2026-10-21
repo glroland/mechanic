@@ -439,21 +439,23 @@ deploymentSpec:
           \                },\n            },\n            extra_body={\n        \
           \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
           : embedding_dimension,\n                # Must match the vector_io provider_id\
-          \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\n\
-          \                # not just the provider_type - confirmed live 2026-10-21:\n\
-          \                # \"milvus\" (stale, pre-OGX-migration value) failed with\n\
-          \                # \"Provider `milvus` not found\"; the registered provider_id\n\
-          \                # is \"milvus-remote\".\n                \"provider_id\"\
-          : \"milvus-remote\",\n            },\n            _request_timeout=timeout,\n\
-          \        )\n        vector_store_id = _parse_response(create_response)[\"\
-          id\"]\n        print(\n            f\"Successfully created vector store\
-          \ '{vector_store_name}' with ID: {vector_store_id}\"\n        )\n    except\
-          \ Exception as e:\n        print(f\"ERROR: Failed to create vector store\
-          \ '{vector_store_name}': {str(e)}\")\n        raise\n\n    # Add files to\
-          \ vector store\n    try:\n        for file_id in file_ids:\n           \
-          \ print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
-          )\n            # Note: this is client.vector_stores_files, not client.vector_stores.files\
-          \ -\n            # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
+          \ not\n                # just the provider_type. This was \"milvus-remote\"\
+          \ while the\n                # server ran remote::milvus against db.home.glroland.com;\n\
+          \                # switched back to \"milvus\" (now inline::milvus, an embedded\n\
+          \                # Milvus Lite file on the OGX pod's PVC) after the remote\n\
+          \                # Milvus server's downtime took out an AutoRAG evaluation\
+          \ run.\n                \"provider_id\": \"milvus\",\n            },\n \
+          \           _request_timeout=timeout,\n        )\n        vector_store_id\
+          \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
+          \   f\"Successfully created vector store '{vector_store_name}' with ID:\
+          \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
+          ERROR: Failed to create vector store '{vector_store_name}': {str(e)}\")\n\
+          \        raise\n\n    # Add files to vector store\n    try:\n        for\
+          \ file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
+          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
+          \ client.vector_stores_files, not client.vector_stores.files -\n       \
+          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
           \            _parse_response(\n                client.vector_stores_files.create_without_preload_content(\n\
           \                    vector_store_id=vector_store_id,\n                \
           \    file_id=file_id,\n                    _request_timeout=timeout,\n \
@@ -689,21 +691,23 @@ deploymentSpec:
           \                },\n            },\n            extra_body={\n        \
           \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
           : embedding_dimension,\n                # Must match the vector_io provider_id\
-          \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\n\
-          \                # not just the provider_type - confirmed live 2026-10-21:\n\
-          \                # \"milvus\" (stale, pre-OGX-migration value) failed with\n\
-          \                # \"Provider `milvus` not found\"; the registered provider_id\n\
-          \                # is \"milvus-remote\".\n                \"provider_id\"\
-          : \"milvus-remote\",\n            },\n            _request_timeout=timeout,\n\
-          \        )\n        vector_store_id = _parse_response(create_response)[\"\
-          id\"]\n        print(\n            f\"Successfully created vector store\
-          \ '{vector_store_name}' with ID: {vector_store_id}\"\n        )\n    except\
-          \ Exception as e:\n        print(f\"ERROR: Failed to create vector store\
-          \ '{vector_store_name}': {str(e)}\")\n        raise\n\n    # Add files to\
-          \ vector store\n    try:\n        for file_id in file_ids:\n           \
-          \ print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
-          )\n            # Note: this is client.vector_stores_files, not client.vector_stores.files\
-          \ -\n            # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
+          \ not\n                # just the provider_type. This was \"milvus-remote\"\
+          \ while the\n                # server ran remote::milvus against db.home.glroland.com;\n\
+          \                # switched back to \"milvus\" (now inline::milvus, an embedded\n\
+          \                # Milvus Lite file on the OGX pod's PVC) after the remote\n\
+          \                # Milvus server's downtime took out an AutoRAG evaluation\
+          \ run.\n                \"provider_id\": \"milvus\",\n            },\n \
+          \           _request_timeout=timeout,\n        )\n        vector_store_id\
+          \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
+          \   f\"Successfully created vector store '{vector_store_name}' with ID:\
+          \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
+          ERROR: Failed to create vector store '{vector_store_name}': {str(e)}\")\n\
+          \        raise\n\n    # Add files to vector store\n    try:\n        for\
+          \ file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
+          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
+          \ client.vector_stores_files, not client.vector_stores.files -\n       \
+          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
           \            _parse_response(\n                client.vector_stores_files.create_without_preload_content(\n\
           \                    vector_store_id=vector_store_id,\n                \
           \    file_id=file_id,\n                    _request_timeout=timeout,\n \

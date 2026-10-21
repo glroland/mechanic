@@ -109,16 +109,21 @@ data:
         provider_type: remote::model-context-protocol
         config: {}
       vector_io:
-      - provider_id: milvus-remote
-        provider_type: remote::milvus
+      - provider_id: milvus
+        provider_type: inline::milvus
         config:
-          consistency_level: ${env.MILVUS_CONSISTENCY_LEVEL:=Bounded}
+          # Embedded Milvus Lite: no remote server, just a local file on the
+          # operator-managed PVC (workload.storage.mountPath in
+          # ogx_deployment.yaml) - confirmed against
+          # ogx.providers.inline.vector_io.milvus.config.MilvusVectorIOConfig
+          # in the running server image, which wants db_path (a local file
+          # path) + persistence (a KVStoreReference), not uri/token/secure
+          # like the remote::milvus provider this replaces.
+          db_path: ${env.MILVUS_DB_PATH:=/.ogx}/milvus.db
+          consistency_level: ${env.MILVUS_CONSISTENCY_LEVEL:=Strong}
           persistence:
             backend: kv_default
-            namespace: vector_io::milvus_remote
-          secure: ${env.MILVUS_SECURE:=false}
-          token: ${env.MILVUS_TOKEN}
-          uri: ${env.MILVUS_ENDPOINT}
+            namespace: vector_io::milvus
     registered_resources:
       models:
       - metadata:
