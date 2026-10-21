@@ -8,21 +8,18 @@
 # each psql invocation below (and make sure pg_hba.conf allows postgres to
 # connect that way).
 #
-# Must be run with DB_PASSWORD set in the environment - it's deliberately
-# not hardcoded here so this script can be committed. Whatever you set it
-# to must match the mechanic-pgvector k8s Secret:
+# DB_NAME/DB_USER/DB_PASSWORD can be overridden via the environment; the
+# defaults below must match the mechanic-pgvector k8s Secret:
 #   oc create secret generic mechanic-pgvector -n mechanic \
 #     --from-literal=database-name=mechanic \
 #     --from-literal=database-user=mechanic \
-#     --from-literal=database-password="$DB_PASSWORD"
-#
-# Usage: DB_PASSWORD='...' ./reset-mechanic-pgvector.sh
+#     --from-literal=database-password=mechanic123
 
 set -euo pipefail
 
-DB_NAME="mechanic"
-DB_USER="mechanic"
-: "${DB_PASSWORD:?Set DB_PASSWORD in the environment before running this script.}"
+DB_NAME="${DB_NAME:-mechanic}"
+DB_USER="${DB_USER:-mechanic}"
+DB_PASSWORD="${DB_PASSWORD:-mechanic123}"
 
 echo "==> Terminating any existing connections to '${DB_NAME}'..."
 psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "
