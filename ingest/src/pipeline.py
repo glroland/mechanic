@@ -9,6 +9,15 @@ PYTORCH_CUDA_IMAGE = "quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py312-ubi9@
 
 @dsl.component(
     base_image=PYTORCH_CUDA_IMAGE,
+    # TODO: Llama Stack was renamed to OGX in OpenShift AI 3.5, and
+    # llama-stack-client has a successor package "ogx-client" on PyPI, but its
+    # published interface is a generated REST client (ogx_client.ApiClient /
+    # ogx_client.AdminApi) rather than the ergonomic client.files.create() /
+    # client.vector_stores.create() / client.models.list() /
+    # client.embeddings.create() surface llama-stack-client exposed and that
+    # this function relies on below. Don't swap the import without confirming
+    # against your actual OGX server which package/version still provides that
+    # surface - verify before changing packages_to_install or the import.
     packages_to_install=["llama-stack-client==0.7.1", "fire", "requests"],
 )
 def register_vector_store_and_files(
@@ -150,7 +159,7 @@ def vector_store_files_pipeline(
     :param max_tokens: Maximum number of tokens per chunk
     :param chunk_overlap_tokens: Number of overlapping tokens between chunks
     :param use_gpu: Enable GPU usage for embedding generation
-    :param timeout: Timeout to use for each LLama Stack API call
+    :param timeout: Timeout to use for each OGX (formerly Llama Stack) API call
     :return:
     """
 

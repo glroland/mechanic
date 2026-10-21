@@ -6,6 +6,8 @@ metadata:
     {{- include "mechanic.labels" . | nindent 4 }}
 immutable: false
 data:
+  # Verified live against the OGXServer CRD: spec.network.port defaults to
+  # 8321, same as the pre-rename Llama Stack default.
   OPENAI_BASE_URL: "http://{{ .Release.Name }}-openai-responses-api-service:8321/v1"
   OPENAI_API_KEY: "no_key_needed"
   MODEL: "vllm-inference/gemma-4"

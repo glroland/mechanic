@@ -1,0 +1,78 @@
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx-server
+spec:
+  distribution:
+    # Verified against the OGXServer CRD on an OpenShift AI 3.5 cluster:
+    # "rh-dev" is accepted but the admission webhook warns it's deprecated -
+    # "rh" is the current name and resolves to the same image.
+    name: rh
+  workload:
+    replicas: 1
+    storage:
+      mountPath: /opt/app-root/src/.ogx
+      size: 20Gi
+    # Verified: workload.resources (cpu/memory limits+requests) is a real,
+    # correctly-placed field on the installed OGXServer CRD (v1beta1).
+    resources:
+      limits:
+        cpu: '2'
+        memory: 12Gi
+      requests:
+        cpu: 250m
+        memory: 500Mi
+    overrides:
+      env:
+        - name: INFERENCE_MODEL
+          valueFrom:
+            secretKeyRef:
+              key: INFERENCE_MODEL
+              name: ogx-inference-model-secret
+        - name: VLLM_URL
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_URL
+              name: ogx-inference-model-secret
+        - name: VLLM_TLS_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_TLS_VERIFY
+              name: ogx-inference-model-secret
+        - name: VLLM_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: VLLM_API_TOKEN
+              name: ogx-inference-model-secret
+        - name: MILVUS_DB_PATH
+          value: /opt/app-root/src/.ogx/milvus.db
+        - name: FMS_ORCHESTRATOR_URL
+          value: 'http://localhost'
+        # Verified live: the "rh" distribution's StackConfig requires a
+        # Postgres-backed KV + SQL state store at startup - without these the
+        # server crashes at boot with a pydantic validation error
+        # ("storage.backends.kv_default.kv_postgres.db ... Input should be a
+        # valid string"). This is a hard requirement of the distribution
+        # itself, independent of which vector_io backend (Milvus here) you use.
+        # You must stand up a real Postgres instance and a matching Secret
+        # before applying this file - see deploy/helm/templates/ogx_deployment.yaml
+        # for the equivalent wiring the Helm chart already uses (lls-postgresql).
+        - name: POSTGRES_HOST
+          value: ogx-postgresql
+        - name: POSTGRES_PORT
+          value: '5432'
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              key: database-name
+              name: ogx-postgresql
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              key: database-user
+              name: ogx-postgresql
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database-password
+              name: ogx-postgresql

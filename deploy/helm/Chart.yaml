@@ -1,6 +1,6 @@
 apiVersion: v2
 name: mechanic
-description: LLama Stack-Backed Mechanic Chatbot
+description: OGX-Backed Mechanic Chatbot
 
 # A chart can be either an 'application' or a 'library' chart.
 #

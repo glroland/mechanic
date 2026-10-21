@@ -1,20 +1,29 @@
-apiVersion: llamastack.io/v1alpha1
-kind: LlamaStackDistribution
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
 metadata:
   name: {{ include "mechanic.fullname" . }}-openai-responses-api
 spec:
-  replicas: 1
-  server:
-    podOverrides:
+  distribution:
+    # Verified against the OGXServer CRD on an OpenShift AI 3.5 cluster:
+    # "rh-dev" is accepted but the admission webhook warns it's deprecated -
+    # "rh" is the current name and resolves to the same image.
+    name: 'rh'
+  workload:
+    replicas: 1
+    overrides:
+      # serviceAccountName/volumes/volumeMounts live directly under
+      # workload.overrides, not a separate "podOverrides" key - verified live:
+      # a "podOverrides" key is silently pruned by the CRD (no error, the
+      # fields just never reach the pod), which would have quietly broken the
+      # custom service account and PVC mount in this chart.
       serviceAccountName: "{{ .Release.Name }}-mechanic-sa"
       volumes:
-        - name: llama-storage-volume
+        - name: ogx-storage-volume
           persistentVolumeClaim:
             claimName: "{{ include "mechanic.fullname" . }}-pvc"
       volumeMounts:
-        - name: llama-storage-volume
-          mountPath: /opt/app-root/src/.llama
-    containerSpec:
+        - name: ogx-storage-volume
+          mountPath: /opt/app-root/src/.ogx
       env:
         - name: VLLM_URL
           value: 'https://gemma-4-kserve-workload-svc.sandbox.svc.cluster.local:8000/v1'
@@ -42,6 +51,14 @@ spec:
           value: "false"
         - name: MILVUS_CONSISTENCY_LEVEL
           value: "Bounded"
+        # Verified live: the "rh" distribution's StackConfig requires a
+        # Postgres-backed KV + SQL state store at startup regardless of which
+        # vector_io backend (Milvus here) is used - omitting these crashes the
+        # pod at boot with a pydantic validation error on
+        # storage.backends.kv_default.kv_postgres/sql_postgres. Keeping the
+        # pre-existing "lls-postgresql" Service/Secret name below since it's
+        # an external dependency not managed by this chart - rename it to
+        # ogx-postgresql too if you're doing a full rebrand of that resource.
         - name: POSTGRES_HOST
           value: lls-postgresql
         - name: POSTGRES_PORT
@@ -61,10 +78,6 @@ spec:
             secretKeyRef:
               key: database-password
               name: lls-postgresql
-      name: llama-stack
-      port: 8321
-    distribution:
-      name: 'rh-dev'
 ---
 kind: Route
 apiVersion: route.openshift.io/v1
@@ -72,6 +85,10 @@ metadata:
   name: {{ .Release.Name }}-openai-responses-api
 spec:
   to:
+    # Verified live: the OGX Operator names the generated Service
+    # "<OGXServer-name>-service" (status.serviceURL confirmed this on a
+    # running OGXServer), same convention as the old LlamaStackDistribution
+    # operator.
     name: {{ include "mechanic.fullname" . }}-openai-responses-api-service
     weight: 100
     kind: Service

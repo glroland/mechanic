@@ -19,7 +19,7 @@ class ErrorCodes:
     SUCCESS = 0
     ILLEGAL_ARGS = 1
     FILE_NOT_FOUND = 2
-    LLS_CONFIG_ERROR = 3
+    OGX_CONFIG_ERROR = 3
     NO_API_KEY = 4
 
 class ColorOutputFormatter(logging.Formatter):
@@ -99,7 +99,7 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
         logger.fatal("OpenAI API Key not specified!")
         sys.exit(ErrorCodes.NO_API_KEY)
 
-    # Connect to LLama Stack
+    # Connect to the OGX server (formerly Llama Stack)
     logger.info("Connecting to OpenAI Compatible Endpoint.  URL=%s", openai_baseurl)
     openai_client = OpenAI(
         base_url=openai_baseurl,

@@ -2,16 +2,18 @@
 
 # Architectural Components
 - Chatbot
-- LLama Stack Backend
+- OGX Backend (formerly Llama Stack; renamed as of OpenShift AI 3.5)
 - Milvus Vector Database
 
-helm-dev configuration uses a community LLama Stack environment called my-llama-stack, which is wired to OpenAI GPT-4 and an externally hosted Milvus server on db.
+helm-dev configuration uses a community Llama Stack/OGX environment called my-llama-stack, which is wired to OpenAI GPT-4 and an externally hosted Milvus server on db.
 
-helm-prod configuration uses the LLama Stack distribution provided by OpenShift AI, which also provides an embedded Milvus server.  All transactional data is stored on a single PVC for this demo.
+helm-prod configuration uses the OGX distribution provided by OpenShift AI, which also provides an embedded Milvus server.  All transactional data is stored on a single PVC for this demo.
+
+> **Note:** OGX integration is a Technology Preview feature in OpenShift AI 3.5. The steps below use the `OGXServer` CRD (`ogx.io/v1beta1`), which replaces the deprecated `LlamaStackDistribution` CRD. This was verified live against a 3.5 cluster — see the "OGX migration notes" section in `CLAUDE.md` for what was confirmed, including a hard requirement that the `rh` distribution needs a real Postgres instance (KV + SQL state store) to boot at all, regardless of which vector store you use.
 
 # Installation (helm-prod)
 
-## Deploy LLM for use with LLama Stack and by the Application
+## Deploy LLM for use with OGX and by the Application
 
 It is assumed that everything is colocated in a single project.
 
@@ -75,37 +77,37 @@ Example - LLama 3.3 70b Instruct (H100)
             --enable-auto-tool-choice
             --tool-call-parser=llama3_json
 
-## LLama Stack with OpenShift AI
+## OGX with OpenShift AI
 
-1. The LLama Stack operator must be enabled in the DSC YAML in the OpenShift AI operator.
+1. The OGX operator must be enabled in the DSC YAML in the OpenShift AI operator (`dsc.spec.components.ogx: managed` — this replaces the deprecated `llamastackoperator` component).
 2. Connect to the cluster from the CLI using the Copy Login Command in the upper right hand side of the OpenShift Console.
 3. Change to the project that was just created above.
 
             oc project mechanic
 
-4. In this GitHub project under deploy/ocp, secret.txt contains environment variables and a command needed to create the secret needed for the LLS distroy.  Change the environment variables to match this environment and then run the create secret command.
+4. In this GitHub project under deploy/ocp, secret.txt contains environment variables and a command needed to create the secret needed for the OGX distro.  Change the environment variables to match this environment and then run the create secret command.
 
             more deploy/ocp/secret.txt
 
-5. Create the LLama Stack operator instance using the YAML in the same folder as the secret.txt file.
+5. Create the OGXServer instance using the YAML in the same folder as the secret.txt file.
 
-            oc apply -f llama_stack_operator_instance.yaml
+            oc apply -f ogx_deployment_using_operator.yaml
 
-6. Wait for the LLama Stack distribution to startup.
+6. Wait for the OGX distribution to startup.
 
             watch -n 1 oc get pods --namespace mechanic
 
-7. [optional] If you want to test against the remote LLS distribution or plan to do the data ingestion remote, create a route for it using lls_route.yaml in same folder.
+7. [optional] If you want to test against the remote OGX distribution or plan to do the data ingestion remote, create a route for it using ogx_route.yaml in same folder.
 
-            oc apply -f lls_route.yaml
+            oc apply -f ogx_route.yaml
 
 ## Ingest Data (via Makefile)
 
 Milvus must be hydrated with content before the chatbot will be functional.  This is currently orchestrated through make with the Makefile in the root directory.
 
-1. Change LLAMA_STACK_URL to map to the LLama Stack route provided above.  If done from the context of a workbench, the internal service URL can be used instead of making the environment available externally.
-2. Change MODEL to the name of the model that you wish to leverage through the LLama Stack runtime.
-3. Change EMBEDDING_MODEL to the embedding model you wish to use for vectorized content through the LLama Stack runtime.
+1. Change OPENAI_BASE_URL to map to the OGX route provided above.  If done from the context of a workbench, the internal service URL can be used instead of making the environment available externally.
+2. Change MODEL to the name of the model that you wish to leverage through the OGX runtime.
+3. Change EMBEDDING_MODEL to the embedding model you wish to use for vectorized content through the OGX runtime.
 4. Provided you already have a compatible python environment setup (tested with Python 3.12), install the dependences.
 
             make install
@@ -116,7 +118,7 @@ Milvus must be hydrated with content before the chatbot will be functional.  Thi
 
 ## Ingest Data (via Data Science Pipeline)
 
-Depending on the version of LLama Stack in use, the vector database will need to be created through the stack as a separate step.  This check has not been codified in the pipeline yet, so for it to work consistently across LLS versions, it is currently expected that this is run after the Makefile version of the data ingestion.
+Depending on the version of OGX (formerly Llama Stack) in use, the vector database will need to be created through the stack as a separate step.  This check has not been codified in the pipeline yet, so for it to work consistently across OGX versions, it is currently expected that this is run after the Makefile version of the data ingestion.
 
 1. In OpenShift AI, navigate to your project and choose Pipelines.
 2. Create a pipeline server if one does not exist.  You will need object storage.
@@ -155,7 +157,7 @@ Some environments are challenging from which to ingest the service manual data. 
             cd /temp
             wget https://raw.githubusercontent.com/glroland/mechanic/fedf18952679ef562ba1975b1bd96ab165d4d23d/ingest/src/import.py
             pip install langchain_text_splitters
-            python import.py http://lsd-llama-milvus-service.mechanic.svc.cluster.local:8321 granite-embedding-125m milvus /tmp/c3_repair.md
+            python import.py http://ogx-server-service.mechanic.svc.cluster.local:8321 granite-embedding-125m milvus /tmp/c3_repair.md
 
 7. Open the chatbot web application.  Find the URL using the routes tab for the project.
 
