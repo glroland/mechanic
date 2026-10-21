@@ -1312,41 +1312,7 @@ NOTE: Do  not  perform  this  operation  on 1976 and later models, as special fu
 
 ## 30     GENERAL INFORMATION AND MAINTENANCE
 
-![Image](c3_repair_artifacts/image_000051_d67082c9046f354ca84fd94f9addea14ba141328a037e755ab88e4f13d84b02b.png)
-
-CM
-
-E
-
-8
-
-in
-
-©
-
-1 o
-
-s
-
-![Image](c3_repair_artifacts/image_000052_04ff3fa84f3b8835e270a9644d8497112eb4203441dd47300d2f3a60aa06ae0a.png)
-
-o o o CD"
-
-CO
-
-o o o
-
-E
-
-o
-
-o
-
-o
-
-co"
-
-![Image](c3_repair_artifacts/image_000053_9d3da0567b25a09c8a01c1875c60291daf68ce7283df2bbd1e33317233f02553.png)
+> **[Content omitted: automated OCR/extraction quality check]** This section looked like extraction noise (garbled characters in place of real content) rather than real manual text, and was redacted before indexing. If this looks wrong, check the noise-detection thresholds in ingest/src/import.py / ingest/src/pipeline.py against the source page.
 
 ## GENERAL INFORMATION AND MAINTENANCE     31
 

@@ -16,58 +16,241 @@ ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
 
 DEFAULT_TIMEOUT = 30 * 60
 
-# Fraction of a chunk's meaningful tokens that may be classified as noise
-# before the whole chunk is dropped rather than uploaded. Calibrated against
-# the OCR/extraction-corrupted tables found and removed from
-# chatbot/src/assets/c3_repair.md (see that file's git history): every
-# confirmed-garbled region there scores 0.75-0.89, every legible
-# table/paragraph (including dense, symbol-heavy spec tables) scores 0.19-0.52
-# - 0.65 sits in the gap between the two.
-CHUNK_NOISE_RATIO_THRESHOLD = 0.65
+# --- OCR/extraction noise detection -----------------------------------
+#
+# Generic, document-agnostic guard against the kind of corruption found (and
+# manually removed) in chatbot/src/assets/c3_repair.md: OCR/extraction
+# failures that emit garbage tokens in place of real table/paragraph content.
+# This isn't specific to that one PDF - it runs on whatever markdown text
+# it's given and looks for the *shape* of extraction noise, not this
+# document's words, so it applies the same way to a different manual re-run
+# through docling, or a re-OCR of this same PDF with different settings.
+#
+# Two stages, because neither alone was precise+recall-complete enough
+# (calibrated 2026-10-21 against this document's actual garbled regions,
+# pulled back out of git history, plus a deliberately adversarial set of
+# legitimate dense reference content - a parts-catalog numbered list, an
+# axle code table with dot-leaders, a garbled-but-still-readable OCR'd prose
+# passage - chosen specifically to try to trip false positives before
+# trusting this to run unsupervised):
+#
+#   1. COARSE DETECTION (noise_ratio(), a sliding window over NOISE_SCAN_*
+#      lines): good recall, including the sparsest corruption pattern seen
+#      here (garbage emitted one token per line, so a run needs ~50 lines to
+#      accumulate enough tokens to be statistically meaningful) - but a wide
+#      window bleeds noise-window flagging up to a window's width into real
+#      content past the true boundary, which first-draft testing caught
+#      eating 18 legitimate tune-up spec rows this document still has.
+#   2. FINE TRIM (line_is_noisy(), per physical line): tight boundaries -
+#      judges each line on its own content, so it can't bleed into a
+#      neighboring table/paragraph the way a window can - but alone it
+#      misses the one-token-per-line pattern, since an isolated 2+ char
+#      fragment like "CM" or "Q." doesn't match the narrow noise-token
+#      pattern on its own and there's no neighboring context to aggregate.
+#
+# Stage 1 finds the approximate region; stage 2 trims it from both ends down
+# to just past the last/first line with direct noise evidence. Validated
+# against the adversarial clean set with zero false positives, and finds
+# all of this document's known-garbled regions (plus one small one missed
+# during the original by-hand pass) within a line or two of the by-hand
+# boundaries.
+NOISE_MIN_TOKENS = 25
 
-# A chunk with fewer meaningful tokens than this is never flagged - too small
-# a sample for the ratio to be trustworthy either way.
-CHUNK_NOISE_MIN_TOKENS = 20
+# A token that's a single bare letter/digit floating alone, or one of the
+# specific repeated OCR-garbage-glyph shapes seen in this document's
+# corruption ("o"/"d"/"CO"/"§" etc. in place of real digits/symbols). Real
+# prose and part/spec codes essentially never tokenize down to a lone
+# character - words are 2+ letters, codes are 2+ chars - so this is a
+# narrow, high-precision signal. An earlier, broader classifier (accepting
+# any token that didn't match a whitelist of "looks like real content"
+# patterns) scored a legitimate parts-catalog list as 80%+ noise - short
+# abbreviations ("Rr.", "Otr.", "Bshg") and OCR'd fraction notation
+# ("7/16"-20x1%") don't match a reasonable whitelist, so "assume noise
+# unless proven signal" is the wrong default; "assume signal unless it's
+# this one specific narrow noise shape" isn't.
+_NOISE_TOKEN_RE = re.compile(r"^([A-Za-z]|[oOdD0]{2,3}|CO|[§•®«»^])$")
 
-# A token that looks like real content: an English-ish word, a plain or
-# decimal number, a year(-range), or an alphanumeric spec/part code (e.g.
-# "R45TS", "27A", "7V2-9").
-_SIGNAL_TOKEN_RE = re.compile(
+# Markdown table syntax / bare punctuation - not a content token either way.
+_PUNCT_ONLY_TOKEN_RE = re.compile(r"^[|:\-=#*!\[\]().,/\\'\"]+$")
+
+# Used only for short (<= SPARSE_MAX_TOKENS-token) lines in line_is_noisy():
+# a real word, a plain/decimal number, or an alphanumeric spec/part code
+# (e.g. "R45TS", "27A"). Deliberately not used as the primary classifier
+# (see the false-positive note above) - only to decide "does this short,
+# otherwise-unclassifiable line contain at least one recognizable thing".
+_SPARSE_SIGNAL_TOKEN_RE = re.compile(
     r"^[A-Za-z]{3,}$"
     r"|^\d+([.,]\d+)?$"
-    r"|^\d{4}(-\d{2,4})?$"
     r"|^[A-Za-z]{1,4}\d{1,5}[A-Za-z0-9]{0,4}$"
     r"|^\d{1,4}[A-Za-z]{1,4}\d{0,4}$"
 )
 
-# Markdown table syntax / bare punctuation - not a content token either way.
-_PUNCT_ONLY_TOKEN_RE = re.compile(r"^[|:\-=#*!\[\]().,/\\]+$")
+# Stage 1 (coarse): sliding window wide enough to accumulate NOISE_MIN_TOKENS
+# even in the sparsest known corruption pattern (~1 token per 2 physical
+# lines), stepped finer than the window so a region doesn't have to align
+# with a window boundary to be caught.
+NOISE_SCAN_WINDOW_LINES = 40
+NOISE_SCAN_STEP_LINES = 10
+NOISE_SCAN_MERGE_GAP_LINES = 12
+NOISE_RATIO_THRESHOLD = 0.20
+
+# Stage 2 (fine trim): a line with more than this many tokens is judged as a
+# whole (most-tokens-are-noise); a line with this many or fewer is judged by
+# whether it contains any recognizable content at all (see
+# _SPARSE_SIGNAL_TOKEN_RE above) - the one-token-per-line pattern only shows
+# up at this granularity.
+DENSE_LINE_NOISE_RATIO_THRESHOLD = 0.5
+SPARSE_MAX_TOKENS = 5
+# Trim stops (keeps the boundary) once a small lookahead/lookbehind window
+# contains no noisy line - i.e. the boundary can sit up to this many lines
+# past the last directly-confirmed-noisy line. Larger values trim less
+# aggressively (more real content kept, but spans can bleed a bit further);
+# smaller values risk splitting one noisy run into pieces if it has a short
+# run of coincidentally-clean-looking lines in the middle.
+TRIM_LOOKAHEAD_LINES = 3
+
+# A trimmed span shorter than this is almost certainly a stage-1 false
+# start (the coarse window found *something*, but there was nothing left
+# after trimming) rather than real corruption, so it's dropped.
+MIN_FINAL_SPAN_LINES = 4
+
+NOISE_REDACTION_NOTE = (
+    "> **[Content omitted: automated OCR/extraction quality check]** This "
+    "section looked like extraction noise (garbled characters in place of "
+    "real content) rather than real manual text, and was redacted before "
+    "indexing. If this looks wrong, check the noise-detection thresholds in "
+    "ingest/src/import.py / ingest/src/pipeline.py against the source page."
+)
 
 
-def chunk_noise_ratio(chunk_text: str) -> float:
-    """ Fraction of a chunk's meaningful tokens that look like OCR/extraction
-        noise (short garbage fragments) rather than real content (words,
-        numbers, spec codes). See CHUNK_NOISE_RATIO_THRESHOLD. Tokenizes
-        across markdown table pipes too, so it works on both prose and table
-        rows without needing them handled separately.
+def _tokens(text: str) -> list[str]:
+    return [t for t in re.split(r"[\s|]+", text) if t.strip()]
+
+
+def noise_ratio(text: str) -> float:
+    """ Fraction of a text sample's meaningful tokens that look like
+        OCR/extraction noise. Stage 1 (coarse) classifier - see
+        NOISE_RATIO_THRESHOLD and the module docstring above.
     """
-    tokens = [
-        t.strip("`'\"")
-        for t in re.split(r"[\s|]+", chunk_text)
-        if t.strip()
-    ]
-    signal = noise = 0
-    for token in tokens:
+    noise = total = 0
+    for token in _tokens(text):
         if _PUNCT_ONLY_TOKEN_RE.fullmatch(token):
             continue
-        if _SIGNAL_TOKEN_RE.match(token):
-            signal += 1
-        else:
+        total += 1
+        if _NOISE_TOKEN_RE.fullmatch(token):
             noise += 1
-    total = signal + noise
-    if total < CHUNK_NOISE_MIN_TOKENS:
+    if total < NOISE_MIN_TOKENS:
         return 0.0
     return noise / total
+
+
+def line_is_noisy(line: str) -> bool:
+    """ Stage 2 (fine) classifier - judges a single physical line. See the
+        module docstring above for why this needs two different rules
+        depending on line length.
+    """
+    if line.strip().startswith("!["):
+        return False  # markdown image reference - structural, not content
+    tokens = [t for t in _tokens(line) if not _PUNCT_ONLY_TOKEN_RE.fullmatch(t)]
+    if not tokens:
+        return False
+    if len(tokens) <= SPARSE_MAX_TOKENS:
+        return not any(_SPARSE_SIGNAL_TOKEN_RE.match(t) for t in tokens)
+    noisy = sum(1 for t in tokens if _NOISE_TOKEN_RE.fullmatch(t))
+    return noisy / len(tokens) >= DENSE_LINE_NOISE_RATIO_THRESHOLD
+
+
+def _find_coarse_spans(lines: list[str]) -> list[tuple[int, int]]:
+    """ Stage 1: sliding-window scan, returns approximate (start, end)
+        line-index spans (0-indexed, inclusive) that need trimming.
+    """
+    n = len(lines)
+    flagged = [False] * n
+    for start in range(0, n, NOISE_SCAN_STEP_LINES):
+        end = min(start + NOISE_SCAN_WINDOW_LINES, n)
+        if noise_ratio("\n".join(lines[start:end])) >= NOISE_RATIO_THRESHOLD:
+            for i in range(start, end):
+                flagged[i] = True
+
+    spans = []
+    i = 0
+    while i < n:
+        if not flagged[i]:
+            i += 1
+            continue
+        span_end = i
+        gap = 0
+        j = i
+        while j < n:
+            if flagged[j]:
+                span_end = j
+                gap = 0
+            else:
+                gap += 1
+                if gap > NOISE_SCAN_MERGE_GAP_LINES:
+                    break
+            j += 1
+        spans.append((i, span_end))
+        i = span_end + 1
+    return spans
+
+
+def _trim_span(lines: list[str], a: int, b: int) -> tuple[int, int]:
+    """ Stage 2: trims a coarse span inward from both ends down to just past
+        the outermost line with direct per-line noise evidence.
+    """
+    def has_noisy_line(start, end):
+        return any(line_is_noisy(l) for l in lines[start:end])
+
+    while a <= b:
+        if has_noisy_line(a, min(a + TRIM_LOOKAHEAD_LINES, b + 1)):
+            break
+        a += 1
+    while b >= a:
+        if has_noisy_line(max(b - TRIM_LOOKAHEAD_LINES + 1, a), b + 1):
+            break
+        b -= 1
+    return a, b
+
+
+def find_noisy_spans(text: str) -> list[tuple[int, int]]:
+    """ Runs both detection stages over a whole document's lines. Returns
+        final (start, end) line-index spans (0-indexed, inclusive).
+    """
+    lines = text.splitlines()
+    spans = []
+    for a0, b0 in _find_coarse_spans(lines):
+        a, b = _trim_span(lines, a0, b0)
+        if a <= b and b - a + 1 >= MIN_FINAL_SPAN_LINES:
+            spans.append((a, b))
+    return spans
+
+
+def redact_noisy_sections(text: str) -> tuple[str, int]:
+    """ Finds noisy spans (see find_noisy_spans()) and replaces each with
+        NOISE_REDACTION_NOTE. Returns (cleaned_text, redacted_span_count).
+
+        This is a line-range redaction, not a chunk-drop: it only removes
+        the noisy span itself, preserving any real content before/after it
+        in the same section/chunk. Boundaries are approximate (calibrated
+        against known examples, not per-page image inspection) and may
+        bleed a line or two of real content into a redacted span - an
+        accepted tradeoff for running unsupervised on every ingest, instead
+        of leaving known-garbled content indexed.
+    """
+    lines = text.splitlines()
+    spans = find_noisy_spans(text)
+    if not spans:
+        return text, 0
+
+    cleaned_lines = []
+    cursor = 0
+    for a, b in spans:
+        cleaned_lines.extend(lines[cursor:a])
+        cleaned_lines.append(NOISE_REDACTION_NOTE)
+        cursor = b + 1
+    cleaned_lines.extend(lines[cursor:])
+    return "\n".join(cleaned_lines), len(spans)
 
 class ErrorCodes:
     SUCCESS = 0
@@ -171,6 +354,13 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
         sys.exit(ErrorCodes.FILE_NOT_FOUND)
     logger.info("Loaded input file.  Size of File=%s", len(file_contents))
 
+    # Redact OCR/extraction-noise regions before chunking, so a corrupted
+    # table/section gets replaced in place rather than taking out an entire
+    # header-chunk around it. See redact_noisy_sections().
+    file_contents, redacted_spans = redact_noisy_sections(file_contents)
+    if redacted_spans:
+        logger.warning("Redacted %s noisy section(s) from input file.", redacted_spans)
+
     # Split document into chunks
     logger.info("Chunking file...")
     headers_to_split_on = [
@@ -211,23 +401,25 @@ def cli(openai_baseurl: str, embedding_model_name: str, vdb_provider:str, input_
     vector_store_id = new_vdb.id
     logger.info("Vector Database Created.  New VDB ID = %s", vector_store_id)
 
-    # insert each chunk, skipping any that look like OCR/extraction noise
-    # rather than real manual content (see chunk_noise_ratio() - guards
-    # against a future re-OCR/re-extraction reintroducing the kind of
-    # garbled tables already cleaned out of c3_repair.md by hand)
+    # insert each chunk, skipping any that *still* look like mostly OCR/
+    # extraction noise after redact_noisy_sections() above already redacted
+    # noisy spans in place - a backstop for the rare chunk that's noise
+    # through-and-through (so redaction left nothing but the note plus a
+    # sliver of real content) rather than noise embedded in a larger
+    # otherwise-good section.
     skipped = 0
     for i, chunk in enumerate(text_chunks):
         # upload chunk and insert into vector store
         #logger.info("Chunk: %s", chunk)
         chunk_str = str(chunk)
 
-        noise_ratio = chunk_noise_ratio(chunk_str)
-        if noise_ratio >= CHUNK_NOISE_RATIO_THRESHOLD:
+        chunk_noise = noise_ratio(chunk_str)
+        if chunk_noise >= NOISE_RATIO_THRESHOLD:
             skipped += 1
             logger.warning(
-                "Skipping chunk %s - looks like OCR/extraction noise (%.0f%% of tokens). "
-                "First 100 chars: %r",
-                i, noise_ratio * 100, chunk_str[:100]
+                "Skipping chunk %s - still looks like OCR/extraction noise "
+                "(%.0f%% of tokens) after redaction. First 100 chars: %r",
+                i, chunk_noise * 100, chunk_str[:100]
             )
             continue
 

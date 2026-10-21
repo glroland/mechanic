@@ -257,23 +257,100 @@ deploymentSpec:
           \ *\n\ndef register_vector_store_and_files(\n    service_url: str,\n   \
           \ vector_store_name: str,\n    embedding_model_id: str,\n    max_tokens:\
           \ int,\n    chunk_overlap_tokens: int,\n    base_url: str,\n    source_filenames:\
-          \ str,\n    timeout: float,\n):\n    import requests\n    from ogx_client\
-          \ import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\n \
-          \   def _parse_response(response):\n        \"\"\"Read an ogx_client *_without_preload_content()\
-          \ response and return\n        its parsed JSON. Confirmed live 2026-10-21:\
-          \ a naive\n        response.json()[\"id\"] on a non-2xx response raises\
-          \ a misleading\n        KeyError (e.g. 'id') with the real server-side error\
-          \ message\n        discarded - this surfaces that message instead.\n   \
-          \     \"\"\"\n        response.read()\n        if not response.is_success:\n\
-          \            raise RuntimeError(\n                f\"OGX request failed:\
-          \ {response.status_code} \"\n                f\"{response.reason_phrase}\
-          \ - {response.text}\"\n            )\n        return response.json()\n\n\
-          \    # Every call below uses the \"_without_preload_content\" variant and\
-          \ reads\n    # .json() directly, instead of the typed create()/list()/retrieve()\n\
-          \    # methods. Confirmed live 2026-10-21: ogx-client==1.5.0's bundled\n\
-          \    # response models are stricter than what this OGX server (1.2.4+rhaiv.0)\n\
-          \    # actually returns - e.g. OpenAIFileObject requires a \"status\" field\
-          \ the\n    # server's /v1/files response doesn't include, so client.files.create()\n\
+          \ str,\n    timeout: float,\n):\n    import re\n    import requests\n  \
+          \  from ogx_client import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\
+          \n    # --- OCR/extraction noise detection -------------------------------\n\
+          \    #\n    # Kept in sync by hand with ingest/src/import.py's copy of the\
+          \ same\n    # logic (see the much longer comment there for the full rationale\
+          \ and\n    # calibration notes) - duplicated rather than imported because\
+          \ this\n    # function is a KFP lightweight component: it gets serialized\
+          \ into\n    # pipeline_compiled.yaml and runs in its own isolated container\
+          \ with no\n    # access to the rest of this repo, only whatever it imports/defines\n\
+          \    # inside its own body (hence \"import requests\" above, not at module\n\
+          \    # level, following the same pattern already used here).\n    #\n  \
+          \  # Generic, document-agnostic guard against the kind of corruption found\n\
+          \    # (and manually removed) in chatbot/src/assets/c3_repair.md: OCR/\n\
+          \    # extraction failures that emit garbage tokens in place of real table/\n\
+          \    # paragraph content. Two stages: a coarse sliding-window scan for good\n\
+          \    # recall (catches sparse one-token-per-line corruption, which needs\
+          \ many\n    # lines of context to read as statistically noisy), then a per-line\
+          \ trim\n    # from both ends for precision (a wide window otherwise bleeds\
+          \ flagging\n    # into real neighboring content - first-draft testing caught\
+          \ this eating\n    # 18 legitimate spec-table rows elsewhere in this same\
+          \ document).\n    _NOISE_TOKEN_RE = re.compile(r\"^([A-Za-z]|[oOdD0]{2,3}|CO|[\xA7\
+          \u2022\xAE\xAB\xBB^])$\")\n    _PUNCT_ONLY_TOKEN_RE = re.compile(r\"^[|:\\\
+          -=#*!\\[\\]().,/\\\\'\\\"]+$\")\n    _SPARSE_SIGNAL_TOKEN_RE = re.compile(\n\
+          \        r\"^[A-Za-z]{3,}$\"\n        r\"|^\\d+([.,]\\d+)?$\"\n        r\"\
+          |^[A-Za-z]{1,4}\\d{1,5}[A-Za-z0-9]{0,4}$\"\n        r\"|^\\d{1,4}[A-Za-z]{1,4}\\\
+          d{0,4}$\"\n    )\n    NOISE_MIN_TOKENS = 25\n    NOISE_SCAN_WINDOW_LINES\
+          \ = 40\n    NOISE_SCAN_STEP_LINES = 10\n    NOISE_SCAN_MERGE_GAP_LINES =\
+          \ 12\n    NOISE_RATIO_THRESHOLD = 0.20\n    DENSE_LINE_NOISE_RATIO_THRESHOLD\
+          \ = 0.5\n    SPARSE_MAX_TOKENS = 5\n    TRIM_LOOKAHEAD_LINES = 3\n    MIN_FINAL_SPAN_LINES\
+          \ = 4\n    NOISE_REDACTION_NOTE = (\n        \"> **[Content omitted: automated\
+          \ OCR/extraction quality check]** \"\n        \"This section looked like\
+          \ extraction noise (garbled characters in \"\n        \"place of real content)\
+          \ rather than real manual text, and was \"\n        \"redacted before indexing.\
+          \ If this looks wrong, check the \"\n        \"noise-detection thresholds\
+          \ in ingest/src/pipeline.py / \"\n        \"ingest/src/import.py against\
+          \ the source page.\"\n    )\n\n    def _tokens(text):\n        return [t\
+          \ for t in re.split(r\"[\\s|]+\", text) if t.strip()]\n\n    def _noise_ratio(text):\n\
+          \        noise = total = 0\n        for token in _tokens(text):\n      \
+          \      if _PUNCT_ONLY_TOKEN_RE.fullmatch(token):\n                continue\n\
+          \            total += 1\n            if _NOISE_TOKEN_RE.fullmatch(token):\n\
+          \                noise += 1\n        if total < NOISE_MIN_TOKENS:\n    \
+          \        return 0.0\n        return noise / total\n\n    def _line_is_noisy(line):\n\
+          \        if line.strip().startswith(\"![\"):\n            return False\n\
+          \        tokens = [t for t in _tokens(line) if not _PUNCT_ONLY_TOKEN_RE.fullmatch(t)]\n\
+          \        if not tokens:\n            return False\n        if len(tokens)\
+          \ <= SPARSE_MAX_TOKENS:\n            return not any(_SPARSE_SIGNAL_TOKEN_RE.match(t)\
+          \ for t in tokens)\n        noisy = sum(1 for t in tokens if _NOISE_TOKEN_RE.fullmatch(t))\n\
+          \        return noisy / len(tokens) >= DENSE_LINE_NOISE_RATIO_THRESHOLD\n\
+          \n    def _find_coarse_spans(lines):\n        n = len(lines)\n        flagged\
+          \ = [False] * n\n        for start in range(0, n, NOISE_SCAN_STEP_LINES):\n\
+          \            end = min(start + NOISE_SCAN_WINDOW_LINES, n)\n           \
+          \ if _noise_ratio(\"\\n\".join(lines[start:end])) >= NOISE_RATIO_THRESHOLD:\n\
+          \                for i in range(start, end):\n                    flagged[i]\
+          \ = True\n        spans = []\n        i = 0\n        while i < n:\n    \
+          \        if not flagged[i]:\n                i += 1\n                continue\n\
+          \            span_end = i\n            gap = 0\n            j = i\n    \
+          \        while j < n:\n                if flagged[j]:\n                \
+          \    span_end = j\n                    gap = 0\n                else:\n\
+          \                    gap += 1\n                    if gap > NOISE_SCAN_MERGE_GAP_LINES:\n\
+          \                        break\n                j += 1\n            spans.append((i,\
+          \ span_end))\n            i = span_end + 1\n        return spans\n\n   \
+          \ def _trim_span(lines, a, b):\n        def has_noisy_line(start, end):\n\
+          \            return any(_line_is_noisy(l) for l in lines[start:end])\n\n\
+          \        while a <= b:\n            if has_noisy_line(a, min(a + TRIM_LOOKAHEAD_LINES,\
+          \ b + 1)):\n                break\n            a += 1\n        while b >=\
+          \ a:\n            if has_noisy_line(max(b - TRIM_LOOKAHEAD_LINES + 1, a),\
+          \ b + 1):\n                break\n            b -= 1\n        return a,\
+          \ b\n\n    def redact_noisy_sections(text):\n        \"\"\" Returns (cleaned_text,\
+          \ redacted_span_count). See the module\n            comment above - this\
+          \ is a line-range redaction, not a whole-file\n            drop, so real\
+          \ content before/after a noisy span survives.\n        \"\"\"\n        lines\
+          \ = text.splitlines()\n        spans = []\n        for a0, b0 in _find_coarse_spans(lines):\n\
+          \            a, b = _trim_span(lines, a0, b0)\n            if a <= b and\
+          \ b - a + 1 >= MIN_FINAL_SPAN_LINES:\n                spans.append((a, b))\n\
+          \        if not spans:\n            return text, 0\n        cleaned_lines\
+          \ = []\n        cursor = 0\n        for a, b in spans:\n            cleaned_lines.extend(lines[cursor:a])\n\
+          \            cleaned_lines.append(NOISE_REDACTION_NOTE)\n            cursor\
+          \ = b + 1\n        cleaned_lines.extend(lines[cursor:])\n        return\
+          \ \"\\n\".join(cleaned_lines), len(spans)\n\n    def _parse_response(response):\n\
+          \        \"\"\"Read an ogx_client *_without_preload_content() response and\
+          \ return\n        its parsed JSON. Confirmed live 2026-10-21: a naive\n\
+          \        response.json()[\"id\"] on a non-2xx response raises a misleading\n\
+          \        KeyError (e.g. 'id') with the real server-side error message\n\
+          \        discarded - this surfaces that message instead.\n        \"\"\"\
+          \n        response.read()\n        if not response.is_success:\n       \
+          \     raise RuntimeError(\n                f\"OGX request failed: {response.status_code}\
+          \ \"\n                f\"{response.reason_phrase} - {response.text}\"\n\
+          \            )\n        return response.json()\n\n    # Every call below\
+          \ uses the \"_without_preload_content\" variant and reads\n    # .json()\
+          \ directly, instead of the typed create()/list()/retrieve()\n    # methods.\
+          \ Confirmed live 2026-10-21: ogx-client==1.5.0's bundled\n    # response\
+          \ models are stricter than what this OGX server (1.2.4+rhaiv.0)\n    # actually\
+          \ returns - e.g. OpenAIFileObject requires a \"status\" field the\n    #\
+          \ server's /v1/files response doesn't include, so client.files.create()\n\
           \    # raised a pydantic ValidationError even though the upload itself\n\
           \    # succeeded (HTTP 200). The \"_without_preload_content\" variants return\n\
           \    # the raw httpx.Response and skip that validation entirely.\n    #\n\
@@ -311,18 +388,25 @@ deploymentSpec:
           \     # Download the docs from URL\n            response = requests.get(source)\n\
           \            response.raise_for_status()  # Raise an exception for bad status\
           \ codes\n\n            file_basename = source.split(\"/\")[-1]\n\n     \
-          \       # ogx_client.ApiClient.files_parameters() only accepts a\n     \
-          \       # (filename, filedata) 2-tuple of raw bytes - no content-type as\n\
-          \            # a 3rd element (unlike llama_stack_client/the OpenAI SDK\n\
-          \            # convention) and it does `filename, filedata = v` directly\
+          \       # Redact OCR/extraction-noise regions before upload, so a\n    \
+          \        # corrupted table/section is replaced in place rather than\n  \
+          \          # indexed as-is. See redact_noisy_sections() above.\n       \
+          \     content_text = response.content.decode(\"utf-8\")\n            content_text,\
+          \ redacted_spans = redact_noisy_sections(content_text)\n            if redacted_spans:\n\
+          \                print(f\"Redacted {redacted_spans} noisy section(s) from\
+          \ {file_basename}\")\n            upload_bytes = content_text.encode(\"\
+          utf-8\")\n\n            # ogx_client.ApiClient.files_parameters() only accepts\
+          \ a\n            # (filename, filedata) 2-tuple of raw bytes - no content-type\
+          \ as\n            # a 3rd element (unlike llama_stack_client/the OpenAI\
+          \ SDK\n            # convention) and it does `filename, filedata = v` directly\
           \ with\n            # no .read(), so a BytesIO wrapper isn't safe either.\n\
           \            # Content-type gets auto-guessed from the filename extension\
           \ via\n            # mimetypes.guess_type() - resolves to \"text/markdown\"\
           \ for the\n            # .md sources used here (confirmed: mimetypes already\
           \ registers\n            # that extension, no explicit override needed).\n\
           \            upload_response = client.files.create_without_preload_content(\n\
-          \                file=(file_basename, response.content),\n             \
-          \   purpose=\"assistants\",\n            )\n            file_id = _parse_response(upload_response)[\"\
+          \                file=(file_basename, upload_bytes),\n                purpose=\"\
+          assistants\",\n            )\n            file_id = _parse_response(upload_response)[\"\
           id\"]\n            file_ids.append(file_id)\n            print(f\"Successfully\
           \ uploaded {file_basename} (file_id: {file_id})\")\n\n        except Exception\
           \ as e:\n            print(f\"ERROR: Failed to upload {filename.strip()}:\
@@ -423,23 +507,100 @@ deploymentSpec:
           \ *\n\ndef register_vector_store_and_files(\n    service_url: str,\n   \
           \ vector_store_name: str,\n    embedding_model_id: str,\n    max_tokens:\
           \ int,\n    chunk_overlap_tokens: int,\n    base_url: str,\n    source_filenames:\
-          \ str,\n    timeout: float,\n):\n    import requests\n    from ogx_client\
-          \ import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\n \
-          \   def _parse_response(response):\n        \"\"\"Read an ogx_client *_without_preload_content()\
-          \ response and return\n        its parsed JSON. Confirmed live 2026-10-21:\
-          \ a naive\n        response.json()[\"id\"] on a non-2xx response raises\
-          \ a misleading\n        KeyError (e.g. 'id') with the real server-side error\
-          \ message\n        discarded - this surfaces that message instead.\n   \
-          \     \"\"\"\n        response.read()\n        if not response.is_success:\n\
-          \            raise RuntimeError(\n                f\"OGX request failed:\
-          \ {response.status_code} \"\n                f\"{response.reason_phrase}\
-          \ - {response.text}\"\n            )\n        return response.json()\n\n\
-          \    # Every call below uses the \"_without_preload_content\" variant and\
-          \ reads\n    # .json() directly, instead of the typed create()/list()/retrieve()\n\
-          \    # methods. Confirmed live 2026-10-21: ogx-client==1.5.0's bundled\n\
-          \    # response models are stricter than what this OGX server (1.2.4+rhaiv.0)\n\
-          \    # actually returns - e.g. OpenAIFileObject requires a \"status\" field\
-          \ the\n    # server's /v1/files response doesn't include, so client.files.create()\n\
+          \ str,\n    timeout: float,\n):\n    import re\n    import requests\n  \
+          \  from ogx_client import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\
+          \n    # --- OCR/extraction noise detection -------------------------------\n\
+          \    #\n    # Kept in sync by hand with ingest/src/import.py's copy of the\
+          \ same\n    # logic (see the much longer comment there for the full rationale\
+          \ and\n    # calibration notes) - duplicated rather than imported because\
+          \ this\n    # function is a KFP lightweight component: it gets serialized\
+          \ into\n    # pipeline_compiled.yaml and runs in its own isolated container\
+          \ with no\n    # access to the rest of this repo, only whatever it imports/defines\n\
+          \    # inside its own body (hence \"import requests\" above, not at module\n\
+          \    # level, following the same pattern already used here).\n    #\n  \
+          \  # Generic, document-agnostic guard against the kind of corruption found\n\
+          \    # (and manually removed) in chatbot/src/assets/c3_repair.md: OCR/\n\
+          \    # extraction failures that emit garbage tokens in place of real table/\n\
+          \    # paragraph content. Two stages: a coarse sliding-window scan for good\n\
+          \    # recall (catches sparse one-token-per-line corruption, which needs\
+          \ many\n    # lines of context to read as statistically noisy), then a per-line\
+          \ trim\n    # from both ends for precision (a wide window otherwise bleeds\
+          \ flagging\n    # into real neighboring content - first-draft testing caught\
+          \ this eating\n    # 18 legitimate spec-table rows elsewhere in this same\
+          \ document).\n    _NOISE_TOKEN_RE = re.compile(r\"^([A-Za-z]|[oOdD0]{2,3}|CO|[\xA7\
+          \u2022\xAE\xAB\xBB^])$\")\n    _PUNCT_ONLY_TOKEN_RE = re.compile(r\"^[|:\\\
+          -=#*!\\[\\]().,/\\\\'\\\"]+$\")\n    _SPARSE_SIGNAL_TOKEN_RE = re.compile(\n\
+          \        r\"^[A-Za-z]{3,}$\"\n        r\"|^\\d+([.,]\\d+)?$\"\n        r\"\
+          |^[A-Za-z]{1,4}\\d{1,5}[A-Za-z0-9]{0,4}$\"\n        r\"|^\\d{1,4}[A-Za-z]{1,4}\\\
+          d{0,4}$\"\n    )\n    NOISE_MIN_TOKENS = 25\n    NOISE_SCAN_WINDOW_LINES\
+          \ = 40\n    NOISE_SCAN_STEP_LINES = 10\n    NOISE_SCAN_MERGE_GAP_LINES =\
+          \ 12\n    NOISE_RATIO_THRESHOLD = 0.20\n    DENSE_LINE_NOISE_RATIO_THRESHOLD\
+          \ = 0.5\n    SPARSE_MAX_TOKENS = 5\n    TRIM_LOOKAHEAD_LINES = 3\n    MIN_FINAL_SPAN_LINES\
+          \ = 4\n    NOISE_REDACTION_NOTE = (\n        \"> **[Content omitted: automated\
+          \ OCR/extraction quality check]** \"\n        \"This section looked like\
+          \ extraction noise (garbled characters in \"\n        \"place of real content)\
+          \ rather than real manual text, and was \"\n        \"redacted before indexing.\
+          \ If this looks wrong, check the \"\n        \"noise-detection thresholds\
+          \ in ingest/src/pipeline.py / \"\n        \"ingest/src/import.py against\
+          \ the source page.\"\n    )\n\n    def _tokens(text):\n        return [t\
+          \ for t in re.split(r\"[\\s|]+\", text) if t.strip()]\n\n    def _noise_ratio(text):\n\
+          \        noise = total = 0\n        for token in _tokens(text):\n      \
+          \      if _PUNCT_ONLY_TOKEN_RE.fullmatch(token):\n                continue\n\
+          \            total += 1\n            if _NOISE_TOKEN_RE.fullmatch(token):\n\
+          \                noise += 1\n        if total < NOISE_MIN_TOKENS:\n    \
+          \        return 0.0\n        return noise / total\n\n    def _line_is_noisy(line):\n\
+          \        if line.strip().startswith(\"![\"):\n            return False\n\
+          \        tokens = [t for t in _tokens(line) if not _PUNCT_ONLY_TOKEN_RE.fullmatch(t)]\n\
+          \        if not tokens:\n            return False\n        if len(tokens)\
+          \ <= SPARSE_MAX_TOKENS:\n            return not any(_SPARSE_SIGNAL_TOKEN_RE.match(t)\
+          \ for t in tokens)\n        noisy = sum(1 for t in tokens if _NOISE_TOKEN_RE.fullmatch(t))\n\
+          \        return noisy / len(tokens) >= DENSE_LINE_NOISE_RATIO_THRESHOLD\n\
+          \n    def _find_coarse_spans(lines):\n        n = len(lines)\n        flagged\
+          \ = [False] * n\n        for start in range(0, n, NOISE_SCAN_STEP_LINES):\n\
+          \            end = min(start + NOISE_SCAN_WINDOW_LINES, n)\n           \
+          \ if _noise_ratio(\"\\n\".join(lines[start:end])) >= NOISE_RATIO_THRESHOLD:\n\
+          \                for i in range(start, end):\n                    flagged[i]\
+          \ = True\n        spans = []\n        i = 0\n        while i < n:\n    \
+          \        if not flagged[i]:\n                i += 1\n                continue\n\
+          \            span_end = i\n            gap = 0\n            j = i\n    \
+          \        while j < n:\n                if flagged[j]:\n                \
+          \    span_end = j\n                    gap = 0\n                else:\n\
+          \                    gap += 1\n                    if gap > NOISE_SCAN_MERGE_GAP_LINES:\n\
+          \                        break\n                j += 1\n            spans.append((i,\
+          \ span_end))\n            i = span_end + 1\n        return spans\n\n   \
+          \ def _trim_span(lines, a, b):\n        def has_noisy_line(start, end):\n\
+          \            return any(_line_is_noisy(l) for l in lines[start:end])\n\n\
+          \        while a <= b:\n            if has_noisy_line(a, min(a + TRIM_LOOKAHEAD_LINES,\
+          \ b + 1)):\n                break\n            a += 1\n        while b >=\
+          \ a:\n            if has_noisy_line(max(b - TRIM_LOOKAHEAD_LINES + 1, a),\
+          \ b + 1):\n                break\n            b -= 1\n        return a,\
+          \ b\n\n    def redact_noisy_sections(text):\n        \"\"\" Returns (cleaned_text,\
+          \ redacted_span_count). See the module\n            comment above - this\
+          \ is a line-range redaction, not a whole-file\n            drop, so real\
+          \ content before/after a noisy span survives.\n        \"\"\"\n        lines\
+          \ = text.splitlines()\n        spans = []\n        for a0, b0 in _find_coarse_spans(lines):\n\
+          \            a, b = _trim_span(lines, a0, b0)\n            if a <= b and\
+          \ b - a + 1 >= MIN_FINAL_SPAN_LINES:\n                spans.append((a, b))\n\
+          \        if not spans:\n            return text, 0\n        cleaned_lines\
+          \ = []\n        cursor = 0\n        for a, b in spans:\n            cleaned_lines.extend(lines[cursor:a])\n\
+          \            cleaned_lines.append(NOISE_REDACTION_NOTE)\n            cursor\
+          \ = b + 1\n        cleaned_lines.extend(lines[cursor:])\n        return\
+          \ \"\\n\".join(cleaned_lines), len(spans)\n\n    def _parse_response(response):\n\
+          \        \"\"\"Read an ogx_client *_without_preload_content() response and\
+          \ return\n        its parsed JSON. Confirmed live 2026-10-21: a naive\n\
+          \        response.json()[\"id\"] on a non-2xx response raises a misleading\n\
+          \        KeyError (e.g. 'id') with the real server-side error message\n\
+          \        discarded - this surfaces that message instead.\n        \"\"\"\
+          \n        response.read()\n        if not response.is_success:\n       \
+          \     raise RuntimeError(\n                f\"OGX request failed: {response.status_code}\
+          \ \"\n                f\"{response.reason_phrase} - {response.text}\"\n\
+          \            )\n        return response.json()\n\n    # Every call below\
+          \ uses the \"_without_preload_content\" variant and reads\n    # .json()\
+          \ directly, instead of the typed create()/list()/retrieve()\n    # methods.\
+          \ Confirmed live 2026-10-21: ogx-client==1.5.0's bundled\n    # response\
+          \ models are stricter than what this OGX server (1.2.4+rhaiv.0)\n    # actually\
+          \ returns - e.g. OpenAIFileObject requires a \"status\" field the\n    #\
+          \ server's /v1/files response doesn't include, so client.files.create()\n\
           \    # raised a pydantic ValidationError even though the upload itself\n\
           \    # succeeded (HTTP 200). The \"_without_preload_content\" variants return\n\
           \    # the raw httpx.Response and skip that validation entirely.\n    #\n\
@@ -477,18 +638,25 @@ deploymentSpec:
           \     # Download the docs from URL\n            response = requests.get(source)\n\
           \            response.raise_for_status()  # Raise an exception for bad status\
           \ codes\n\n            file_basename = source.split(\"/\")[-1]\n\n     \
-          \       # ogx_client.ApiClient.files_parameters() only accepts a\n     \
-          \       # (filename, filedata) 2-tuple of raw bytes - no content-type as\n\
-          \            # a 3rd element (unlike llama_stack_client/the OpenAI SDK\n\
-          \            # convention) and it does `filename, filedata = v` directly\
+          \       # Redact OCR/extraction-noise regions before upload, so a\n    \
+          \        # corrupted table/section is replaced in place rather than\n  \
+          \          # indexed as-is. See redact_noisy_sections() above.\n       \
+          \     content_text = response.content.decode(\"utf-8\")\n            content_text,\
+          \ redacted_spans = redact_noisy_sections(content_text)\n            if redacted_spans:\n\
+          \                print(f\"Redacted {redacted_spans} noisy section(s) from\
+          \ {file_basename}\")\n            upload_bytes = content_text.encode(\"\
+          utf-8\")\n\n            # ogx_client.ApiClient.files_parameters() only accepts\
+          \ a\n            # (filename, filedata) 2-tuple of raw bytes - no content-type\
+          \ as\n            # a 3rd element (unlike llama_stack_client/the OpenAI\
+          \ SDK\n            # convention) and it does `filename, filedata = v` directly\
           \ with\n            # no .read(), so a BytesIO wrapper isn't safe either.\n\
           \            # Content-type gets auto-guessed from the filename extension\
           \ via\n            # mimetypes.guess_type() - resolves to \"text/markdown\"\
           \ for the\n            # .md sources used here (confirmed: mimetypes already\
           \ registers\n            # that extension, no explicit override needed).\n\
           \            upload_response = client.files.create_without_preload_content(\n\
-          \                file=(file_basename, response.content),\n             \
-          \   purpose=\"assistants\",\n            )\n            file_id = _parse_response(upload_response)[\"\
+          \                file=(file_basename, upload_bytes),\n                purpose=\"\
+          assistants\",\n            )\n            file_id = _parse_response(upload_response)[\"\
           id\"]\n            file_ids.append(file_id)\n            print(f\"Successfully\
           \ uploaded {file_basename} (file_id: {file_id})\")\n\n        except Exception\
           \ as e:\n            print(f\"ERROR: Failed to upload {filename.strip()}:\

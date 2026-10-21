@@ -44,10 +44,149 @@ def register_vector_store_and_files(
     source_filenames: str,
     timeout: float,
 ):
+    import re
     import requests
     from ogx_client import OgxClient
 
     client = OgxClient(base_url=service_url)
+
+    # --- OCR/extraction noise detection -------------------------------
+    #
+    # Kept in sync by hand with ingest/src/import.py's copy of the same
+    # logic (see the much longer comment there for the full rationale and
+    # calibration notes) - duplicated rather than imported because this
+    # function is a KFP lightweight component: it gets serialized into
+    # pipeline_compiled.yaml and runs in its own isolated container with no
+    # access to the rest of this repo, only whatever it imports/defines
+    # inside its own body (hence "import requests" above, not at module
+    # level, following the same pattern already used here).
+    #
+    # Generic, document-agnostic guard against the kind of corruption found
+    # (and manually removed) in chatbot/src/assets/c3_repair.md: OCR/
+    # extraction failures that emit garbage tokens in place of real table/
+    # paragraph content. Two stages: a coarse sliding-window scan for good
+    # recall (catches sparse one-token-per-line corruption, which needs many
+    # lines of context to read as statistically noisy), then a per-line trim
+    # from both ends for precision (a wide window otherwise bleeds flagging
+    # into real neighboring content - first-draft testing caught this eating
+    # 18 legitimate spec-table rows elsewhere in this same document).
+    _NOISE_TOKEN_RE = re.compile(r"^([A-Za-z]|[oOdD0]{2,3}|CO|[§•®«»^])$")
+    _PUNCT_ONLY_TOKEN_RE = re.compile(r"^[|:\-=#*!\[\]().,/\\'\"]+$")
+    _SPARSE_SIGNAL_TOKEN_RE = re.compile(
+        r"^[A-Za-z]{3,}$"
+        r"|^\d+([.,]\d+)?$"
+        r"|^[A-Za-z]{1,4}\d{1,5}[A-Za-z0-9]{0,4}$"
+        r"|^\d{1,4}[A-Za-z]{1,4}\d{0,4}$"
+    )
+    NOISE_MIN_TOKENS = 25
+    NOISE_SCAN_WINDOW_LINES = 40
+    NOISE_SCAN_STEP_LINES = 10
+    NOISE_SCAN_MERGE_GAP_LINES = 12
+    NOISE_RATIO_THRESHOLD = 0.20
+    DENSE_LINE_NOISE_RATIO_THRESHOLD = 0.5
+    SPARSE_MAX_TOKENS = 5
+    TRIM_LOOKAHEAD_LINES = 3
+    MIN_FINAL_SPAN_LINES = 4
+    NOISE_REDACTION_NOTE = (
+        "> **[Content omitted: automated OCR/extraction quality check]** "
+        "This section looked like extraction noise (garbled characters in "
+        "place of real content) rather than real manual text, and was "
+        "redacted before indexing. If this looks wrong, check the "
+        "noise-detection thresholds in ingest/src/pipeline.py / "
+        "ingest/src/import.py against the source page."
+    )
+
+    def _tokens(text):
+        return [t for t in re.split(r"[\s|]+", text) if t.strip()]
+
+    def _noise_ratio(text):
+        noise = total = 0
+        for token in _tokens(text):
+            if _PUNCT_ONLY_TOKEN_RE.fullmatch(token):
+                continue
+            total += 1
+            if _NOISE_TOKEN_RE.fullmatch(token):
+                noise += 1
+        if total < NOISE_MIN_TOKENS:
+            return 0.0
+        return noise / total
+
+    def _line_is_noisy(line):
+        if line.strip().startswith("!["):
+            return False
+        tokens = [t for t in _tokens(line) if not _PUNCT_ONLY_TOKEN_RE.fullmatch(t)]
+        if not tokens:
+            return False
+        if len(tokens) <= SPARSE_MAX_TOKENS:
+            return not any(_SPARSE_SIGNAL_TOKEN_RE.match(t) for t in tokens)
+        noisy = sum(1 for t in tokens if _NOISE_TOKEN_RE.fullmatch(t))
+        return noisy / len(tokens) >= DENSE_LINE_NOISE_RATIO_THRESHOLD
+
+    def _find_coarse_spans(lines):
+        n = len(lines)
+        flagged = [False] * n
+        for start in range(0, n, NOISE_SCAN_STEP_LINES):
+            end = min(start + NOISE_SCAN_WINDOW_LINES, n)
+            if _noise_ratio("\n".join(lines[start:end])) >= NOISE_RATIO_THRESHOLD:
+                for i in range(start, end):
+                    flagged[i] = True
+        spans = []
+        i = 0
+        while i < n:
+            if not flagged[i]:
+                i += 1
+                continue
+            span_end = i
+            gap = 0
+            j = i
+            while j < n:
+                if flagged[j]:
+                    span_end = j
+                    gap = 0
+                else:
+                    gap += 1
+                    if gap > NOISE_SCAN_MERGE_GAP_LINES:
+                        break
+                j += 1
+            spans.append((i, span_end))
+            i = span_end + 1
+        return spans
+
+    def _trim_span(lines, a, b):
+        def has_noisy_line(start, end):
+            return any(_line_is_noisy(l) for l in lines[start:end])
+
+        while a <= b:
+            if has_noisy_line(a, min(a + TRIM_LOOKAHEAD_LINES, b + 1)):
+                break
+            a += 1
+        while b >= a:
+            if has_noisy_line(max(b - TRIM_LOOKAHEAD_LINES + 1, a), b + 1):
+                break
+            b -= 1
+        return a, b
+
+    def redact_noisy_sections(text):
+        """ Returns (cleaned_text, redacted_span_count). See the module
+            comment above - this is a line-range redaction, not a whole-file
+            drop, so real content before/after a noisy span survives.
+        """
+        lines = text.splitlines()
+        spans = []
+        for a0, b0 in _find_coarse_spans(lines):
+            a, b = _trim_span(lines, a0, b0)
+            if a <= b and b - a + 1 >= MIN_FINAL_SPAN_LINES:
+                spans.append((a, b))
+        if not spans:
+            return text, 0
+        cleaned_lines = []
+        cursor = 0
+        for a, b in spans:
+            cleaned_lines.extend(lines[cursor:a])
+            cleaned_lines.append(NOISE_REDACTION_NOTE)
+            cursor = b + 1
+        cleaned_lines.extend(lines[cursor:])
+        return "\n".join(cleaned_lines), len(spans)
 
     def _parse_response(response):
         """Read an ogx_client *_without_preload_content() response and return
@@ -116,6 +255,15 @@ def register_vector_store_and_files(
 
             file_basename = source.split("/")[-1]
 
+            # Redact OCR/extraction-noise regions before upload, so a
+            # corrupted table/section is replaced in place rather than
+            # indexed as-is. See redact_noisy_sections() above.
+            content_text = response.content.decode("utf-8")
+            content_text, redacted_spans = redact_noisy_sections(content_text)
+            if redacted_spans:
+                print(f"Redacted {redacted_spans} noisy section(s) from {file_basename}")
+            upload_bytes = content_text.encode("utf-8")
+
             # ogx_client.ApiClient.files_parameters() only accepts a
             # (filename, filedata) 2-tuple of raw bytes - no content-type as
             # a 3rd element (unlike llama_stack_client/the OpenAI SDK
@@ -126,7 +274,7 @@ def register_vector_store_and_files(
             # .md sources used here (confirmed: mimetypes already registers
             # that extension, no explicit override needed).
             upload_response = client.files.create_without_preload_content(
-                file=(file_basename, response.content),
+                file=(file_basename, upload_bytes),
                 purpose="assistants",
             )
             file_id = _parse_response(upload_response)["id"]
