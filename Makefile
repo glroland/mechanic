@@ -2,7 +2,7 @@ OPENAI_BASE_URL := http://mechanic-openai-responses-api-service:8321/v1
 OPENAI_API_KEY := nokeyneeded
 MODEL := vllm-inference/gemma-4
 EMBEDDING_MODEL := sentence-transformers/nomic-ai/nomic-embed-text-v1.5
-VECTORDB_PROVIDER := faiss
+VECTORDB_PROVIDER := pgvector
 
 MLFLOW_TRACKING_URI := https://rh-ai.apps.ocp.home.glroland.com/mlflow
 MLFLOW_WORKSPACE := mechanic

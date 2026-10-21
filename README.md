@@ -157,7 +157,7 @@ Some environments are challenging from which to ingest the service manual data. 
             cd /temp
             wget https://raw.githubusercontent.com/glroland/mechanic/fedf18952679ef562ba1975b1bd96ab165d4d23d/ingest/src/import.py
             pip install langchain_text_splitters
-            python import.py http://ogx-server-service.mechanic.svc.cluster.local:8321 granite-embedding-125m faiss /tmp/c3_repair.md
+            python import.py http://ogx-server-service.mechanic.svc.cluster.local:8321 granite-embedding-125m pgvector /tmp/c3_repair.md
 
 7. Open the chatbot web application.  Find the URL using the routes tab for the project.
 

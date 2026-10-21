@@ -441,23 +441,21 @@ deploymentSpec:
           : embedding_dimension,\n                # Must match the vector_io provider_id\
           \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
           \ not\n                # just the provider_type. Went through \"milvus-remote\"\
-          \n                # (remote::milvus), \"milvus\" (inline::milvus - broke\
-          \ search\n                # on every OGX pod restart) and \"chroma\" (inline::chromadb\
-          \ -\n                # not actually installed in this distribution image)\
-          \ before\n                # landing on \"faiss\" (inline::faiss - pip package\
-          \ confirmed\n                # installed, and it persists through Postgres\
-          \ instead of a\n                # local file, so it has neither prior failure\
-          \ mode).\n                \"provider_id\": \"faiss\",\n            },\n\
-          \            _request_timeout=timeout,\n        )\n        vector_store_id\
-          \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
-          \   f\"Successfully created vector store '{vector_store_name}' with ID:\
-          \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
-          ERROR: Failed to create vector store '{vector_store_name}': {str(e)}\")\n\
-          \        raise\n\n    # Add files to vector store\n    try:\n        for\
-          \ file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
-          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
-          \ client.vector_stores_files, not client.vector_stores.files -\n       \
-          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          ,\n                # \"milvus\" (inline::milvus), \"chroma\" (inline::chromadb)\
+          \ and\n                # \"faiss\" (inline::faiss) before landing on \"\
+          pgvector\"\n                # (remote::pgvector) - the inline ones all worked\
+          \ for the\n                # chatbot itself but AutoRAG's compatibility\
+          \ check only\n                # accepts a remote Milvus or PGVector provider.\n\
+          \                \"provider_id\": \"pgvector\",\n            },\n      \
+          \      _request_timeout=timeout,\n        )\n        vector_store_id = _parse_response(create_response)[\"\
+          id\"]\n        print(\n            f\"Successfully created vector store\
+          \ '{vector_store_name}' with ID: {vector_store_id}\"\n        )\n    except\
+          \ Exception as e:\n        print(f\"ERROR: Failed to create vector store\
+          \ '{vector_store_name}': {str(e)}\")\n        raise\n\n    # Add files to\
+          \ vector store\n    try:\n        for file_id in file_ids:\n           \
+          \ print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
+          )\n            # Note: this is client.vector_stores_files, not client.vector_stores.files\
+          \ -\n            # ogx-client puts it at the top level, unlike llama_stack_client.\n\
           \            _parse_response(\n                client.vector_stores_files.create_without_preload_content(\n\
           \                    vector_store_id=vector_store_id,\n                \
           \    file_id=file_id,\n                    _request_timeout=timeout,\n \
@@ -695,23 +693,21 @@ deploymentSpec:
           : embedding_dimension,\n                # Must match the vector_io provider_id\
           \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
           \ not\n                # just the provider_type. Went through \"milvus-remote\"\
-          \n                # (remote::milvus), \"milvus\" (inline::milvus - broke\
-          \ search\n                # on every OGX pod restart) and \"chroma\" (inline::chromadb\
-          \ -\n                # not actually installed in this distribution image)\
-          \ before\n                # landing on \"faiss\" (inline::faiss - pip package\
-          \ confirmed\n                # installed, and it persists through Postgres\
-          \ instead of a\n                # local file, so it has neither prior failure\
-          \ mode).\n                \"provider_id\": \"faiss\",\n            },\n\
-          \            _request_timeout=timeout,\n        )\n        vector_store_id\
-          \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
-          \   f\"Successfully created vector store '{vector_store_name}' with ID:\
-          \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
-          ERROR: Failed to create vector store '{vector_store_name}': {str(e)}\")\n\
-          \        raise\n\n    # Add files to vector store\n    try:\n        for\
-          \ file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
-          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
-          \ client.vector_stores_files, not client.vector_stores.files -\n       \
-          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          ,\n                # \"milvus\" (inline::milvus), \"chroma\" (inline::chromadb)\
+          \ and\n                # \"faiss\" (inline::faiss) before landing on \"\
+          pgvector\"\n                # (remote::pgvector) - the inline ones all worked\
+          \ for the\n                # chatbot itself but AutoRAG's compatibility\
+          \ check only\n                # accepts a remote Milvus or PGVector provider.\n\
+          \                \"provider_id\": \"pgvector\",\n            },\n      \
+          \      _request_timeout=timeout,\n        )\n        vector_store_id = _parse_response(create_response)[\"\
+          id\"]\n        print(\n            f\"Successfully created vector store\
+          \ '{vector_store_name}' with ID: {vector_store_id}\"\n        )\n    except\
+          \ Exception as e:\n        print(f\"ERROR: Failed to create vector store\
+          \ '{vector_store_name}': {str(e)}\")\n        raise\n\n    # Add files to\
+          \ vector store\n    try:\n        for file_id in file_ids:\n           \
+          \ print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
+          )\n            # Note: this is client.vector_stores_files, not client.vector_stores.files\
+          \ -\n            # ogx-client puts it at the top level, unlike llama_stack_client.\n\
           \            _parse_response(\n                client.vector_stores_files.create_without_preload_content(\n\
           \                    vector_store_id=vector_store_id,\n                \
           \    file_id=file_id,\n                    _request_timeout=timeout,\n \

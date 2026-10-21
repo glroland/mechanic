@@ -58,12 +58,41 @@ spec:
         # the env-var-driven config generator entirely - see ogx-config.yaml,
         # which hardcodes the embedding/vector_io provider config directly.
         # Went through remote::milvus -> inline::milvus -> inline::chromadb
-        # before landing on inline::faiss - see the long comment on
-        # providers.vector_io in ogx-config.yaml for why each prior one was
-        # dropped. inline::faiss's config has no db_path/MILVUS_*/CHROMADB_*
-        # env var at all - it persists entirely through the Postgres-backed
-        # kv_default storage backend configured below, so no vector_io-
-        # specific env vars are needed here any more.
+        # -> inline::faiss before landing on remote::pgvector - see the long
+        # comment on providers.vector_io in ogx-config.yaml for why each
+        # prior one was dropped (the short version: AutoRAG's compatibility
+        # check only accepts a remote Milvus or PGVector provider, so none
+        # of the inline/embedded ones - even the ones that otherwise worked
+        # fine for the chatbot itself - were actually viable long-term).
+        # PGVECTOR_HOST/PORT/DB/USER/PASSWORD below are what ogx-config.yaml's
+        # vector_io provider reads via ${env.VAR}. This is a separate
+        # Postgres instance (db.home.glroland.com) from kv_default/
+        # sql_default's lls-postgresql below - that instance doesn't have
+        # the pgvector extension available at all. PGVECTOR_DB/USER/PASSWORD
+        # come from a Secret (mechanic-pgvector) created out-of-band, same
+        # as lls-postgresql's - see README for the one-time setup (a
+        # superuser must run `CREATE EXTENSION vector;` on that database
+        # before this provider will work; the app's own user isn't allowed
+        # to create extensions itself).
+        - name: PGVECTOR_HOST
+          value: db.home.glroland.com
+        - name: PGVECTOR_PORT
+          value: '5432'
+        - name: PGVECTOR_DB
+          valueFrom:
+            secretKeyRef:
+              key: database-name
+              name: mechanic-pgvector
+        - name: PGVECTOR_USER
+          valueFrom:
+            secretKeyRef:
+              key: database-user
+              name: mechanic-pgvector
+        - name: PGVECTOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database-password
+              name: mechanic-pgvector
         # Verified live: the "rh" distribution's StackConfig requires a
         # Postgres-backed KV + SQL state store at startup regardless of which
         # vector_io backend (Milvus here) is used - omitting these crashes the

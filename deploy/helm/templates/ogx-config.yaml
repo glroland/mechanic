@@ -109,32 +109,35 @@ data:
         provider_type: remote::model-context-protocol
         config: {}
       vector_io:
-      - provider_id: faiss
-        # Tried inline::milvus first: confirmed live that
-        # ogx.providers.remote.vector_io.milvus.milvus.MilvusIndex
-        # .initialize() only calls pymilvus's load_collection() on the
-        # fresh-creation path, so every OGX pod restart left an
-        # already-persisted collection in Milvus's "released" state and
-        # broke every search until the vector store was deleted and
-        # re-ingested. Tried inline::chromadb next (the registered
-        # provider_type for ogx.providers.inline.vector_io.chroma - not
-        # "inline::chroma", a wrong guess that crashed startup outright):
-        # that crashed too, with "ModuleNotFoundError: No module named
-        # 'chromadb'" - confirmed live that chromadb isn't actually
-        # installed in this distribution image, despite being a registered
-        # provider. inline::faiss's pip_packages (faiss-cpu) ARE installed
-        # (confirmed via `python3 -c "import faiss"` in a throwaway debug
-        # pod from this same image), and its config has no db_path at all -
-        # ogx.providers.inline.vector_io.faiss.faiss.FaissVectorIOAdapter
-        # .initialize() fully deserializes the vector index out of the
-        # persistence KV store (kv_default -> our already-required Postgres)
-        # on every startup, so there's no on-disk file lock to race and no
-        # separate load/release lifecycle to get stuck in.
-        provider_type: inline::faiss
+      - provider_id: pgvector
+        # Went through inline::milvus (broke search on every OGX pod
+        # restart - MilvusIndex.initialize() only reloads a collection on
+        # the fresh-creation path), inline::chromadb (registered but the
+        # chromadb pip package isn't actually installed in this
+        # distribution image), and inline::faiss (worked, but AutoRAG's own
+        # compatibility check rejects every inline/embedded vector_io
+        # provider - its warning banner names only "a remote Milvus or
+        # PGVector provider" as supported) before landing here.
+        # remote::pgvector against db.home.glroland.com:5432 - a separate
+        # Postgres instance from kv_default/sql_default's lls-postgresql
+        # (confirmed live: lls-postgresql's pg_available_extensions doesn't
+        # even list "vector"). asyncpg and pgvector pip packages confirmed
+        # installed in this image. The "mechanic" database on that server
+        # needs `CREATE EXTENSION vector;` run once as a superuser before
+        # this works - the app's own mechanic user owns the database but
+        # isn't allowed to create extensions itself (confirmed live:
+        # "ERROR: permission denied to create extension \"vector\" - HINT:
+        # Must be superuser").
+        provider_type: remote::pgvector
         config:
+          host: ${env.PGVECTOR_HOST:=localhost}
+          port: ${env.PGVECTOR_PORT:=5432}
+          db: ${env.PGVECTOR_DB}
+          user: ${env.PGVECTOR_USER}
+          password: ${env.PGVECTOR_PASSWORD}
           persistence:
             backend: kv_default
-            namespace: vector_io::faiss
+            namespace: vector_io::pgvector
     registered_resources:
       models:
       - metadata:

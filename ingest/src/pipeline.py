@@ -337,14 +337,13 @@ def register_vector_store_and_files(
                 "embedding_dimension": embedding_dimension,
                 # Must match the vector_io provider_id actually registered
                 # on the server (deploy/helm/templates/ogx-config.yaml), not
-                # just the provider_type. Went through "milvus-remote"
-                # (remote::milvus), "milvus" (inline::milvus - broke search
-                # on every OGX pod restart) and "chroma" (inline::chromadb -
-                # not actually installed in this distribution image) before
-                # landing on "faiss" (inline::faiss - pip package confirmed
-                # installed, and it persists through Postgres instead of a
-                # local file, so it has neither prior failure mode).
-                "provider_id": "faiss",
+                # just the provider_type. Went through "milvus-remote",
+                # "milvus" (inline::milvus), "chroma" (inline::chromadb) and
+                # "faiss" (inline::faiss) before landing on "pgvector"
+                # (remote::pgvector) - the inline ones all worked for the
+                # chatbot itself but AutoRAG's compatibility check only
+                # accepts a remote Milvus or PGVector provider.
+                "provider_id": "pgvector",
             },
             _request_timeout=timeout,
         )
