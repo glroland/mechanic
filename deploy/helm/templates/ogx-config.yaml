@@ -110,7 +110,12 @@ data:
         config: {}
       vector_io:
       - provider_id: chroma
-        provider_type: inline::chroma
+        # Confirmed live 2026-10-21: this crashed startup with "Provider
+        # `inline::chroma` is not available for API `Api.vector_io`" -
+        # ogx.providers.registry.vector_io registers this provider's
+        # provider_type as "inline::chromadb" (not "inline::chroma"), even
+        # though its module path is ogx.providers.inline.vector_io.chroma.
+        provider_type: inline::chromadb
         config:
           # Embedded ChromaDB, not inline::milvus: read directly out of the
           # running server image's ogx.providers.remote.vector_io.milvus.milvus
