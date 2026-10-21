@@ -10,8 +10,19 @@ spec:
     name: rh
   workload:
     replicas: 1
+    # Diagnosed live 2026-10-21 on a real OGXServer in the mechanic namespace:
+    # the inherited /opt/app-root/src/.ogx mount path (carried over from the
+    # old /opt/app-root/src/.llama convention) isn't itself the problem, but
+    # a fresh PVC mounted at /.ogx - the CRD's own default, and what the one
+    # other known-working OGXServer on this cluster uses - sidesteps a real
+    # failure mode: this distribution image creates distributions/<name>/files
+    # under the mount at startup, and on a PVC that's ever had that directory
+    # created by a root-run pod (e.g. under this project's anyuid SCC), it's
+    # left root:root 755+sticky, which a later non-root pod can't write into
+    # ("PermissionError: [Errno 13] Permission denied"). Use a PVC that has
+    # never been touched by a root-run pod, not just this mountPath.
     storage:
-      mountPath: /opt/app-root/src/.ogx
+      mountPath: /.ogx
       size: 20Gi
     # Verified: workload.resources (cpu/memory limits+requests) is a real,
     # correctly-placed field on the installed OGXServer CRD (v1beta1).
@@ -45,7 +56,7 @@ spec:
               key: VLLM_API_TOKEN
               name: ogx-inference-model-secret
         - name: MILVUS_DB_PATH
-          value: /opt/app-root/src/.ogx/milvus.db
+          value: /.ogx/milvus.db
         - name: FMS_ORCHESTRATOR_URL
           value: 'http://localhost'
         # Verified live: the "rh" distribution's StackConfig requires a

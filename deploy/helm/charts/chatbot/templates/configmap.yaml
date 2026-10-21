@@ -12,6 +12,12 @@ data:
   OPENAI_API_KEY: "no_key_needed"
   MODEL: "vllm-inference/gemma-4"
   MLFLOW_TRACKING_URI: "https://rh-ai.apps.ocp.home.glroland.com/mlflow"
+  # kubernetes-namespaced auto-reads the pod's own service-account token and
+  # namespace (mlflow[kubernetes], in chatbot/requirements.txt) for
+  # Authorization + X-MLFLOW-WORKSPACE -- no token Secret to manage or
+  # rotate. MLFLOW_WORKSPACE below is set explicitly anyway rather than
+  # relying on namespace-derivation, so this keeps working even if the
+  # chatbot is ever deployed into a namespace not literally named "mechanic".
   MLFLOW_TRACKING_AUTH: "kubernetes-namespaced"
-  MLFLOW_EXPERIMENT_ID: "3"
+  MLFLOW_WORKSPACE: "mechanic"
   MLFLOW_EXPERIMENT_NAME: "mechanic-chatbot-v2"

@@ -5,8 +5,7 @@ watchdog
 requests
 openai
 fire
-kubernetes
-mlflow
+mlflow[kubernetes]>=3.14.0,<4
 
 --extra-index-url https://pypi.org/simple/
 streamlit-pdf

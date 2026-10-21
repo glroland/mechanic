@@ -8,22 +8,41 @@ spec:
     # "rh-dev" is accepted but the admission webhook warns it's deprecated -
     # "rh" is the current name and resolves to the same image.
     name: 'rh'
+  # Verified live 2026-10-21: the "rh" distribution's env-var-driven config
+  # generator doesn't support an inline embedding provider (see the comment
+  # in ogx-config.yaml for the full story and a link to the upstream repo
+  # confirming it). This replaces that generator entirely with a hand-
+  # written config.yaml that adds the missing provider - see ogx-config.yaml.
+  overrideConfig:
+    name: {{ include "mechanic.fullname" . }}-ogx-config
+    key: config.yaml
   workload:
     replicas: 1
+    # Diagnosed live 2026-10-21 against the crashing pod in the mechanic
+    # namespace: this used to be a hand-rolled PVC mounted via
+    # workload.overrides.volumes/volumeMounts at /opt/app-root/src/.ogx. Two
+    # problems with that: (1) that PVC had stale root:root 755+sticky
+    # directories under distributions/ left over from before this migration
+    # (likely from a prior root-run pod under this project's anyuid SCC),
+    # which a non-root OGX pod can't write into ("PermissionError: [Errno 13]
+    # Permission denied"); (2) moving the hand-rolled mount to /.ogx (the
+    # CRD's own default) to work around that collided with a volume the
+    # operator ALWAYS creates itself at that exact path - an emptyDir named
+    # "ogx-storage" - causing "duplicate entries for key [mountPath=\"/.ogx\"]".
+    # The actual fix is this structured field: it tells the operator to swap
+    # its own default emptyDir for a real, operator-managed PVC at the same
+    # path, instead of fighting it with a second, hand-rolled volume. No PVC
+    # template needed in this chart any more - the operator creates and owns
+    # its own (named "<OGXServer-name>-pvc").
+    storage:
+      mountPath: /.ogx
+      size: 20Gi
     overrides:
-      # serviceAccountName/volumes/volumeMounts live directly under
-      # workload.overrides, not a separate "podOverrides" key - verified live:
-      # a "podOverrides" key is silently pruned by the CRD (no error, the
-      # fields just never reach the pod), which would have quietly broken the
-      # custom service account and PVC mount in this chart.
+      # serviceAccountName lives directly under workload.overrides, not a
+      # separate "podOverrides" key - verified live: a "podOverrides" key is
+      # silently pruned by the CRD (no error, the field just never reaches
+      # the pod), which would have quietly broken the custom service account.
       serviceAccountName: "{{ .Release.Name }}-mechanic-sa"
-      volumes:
-        - name: ogx-storage-volume
-          persistentVolumeClaim:
-            claimName: "{{ include "mechanic.fullname" . }}-pvc"
-      volumeMounts:
-        - name: ogx-storage-volume
-          mountPath: /opt/app-root/src/.ogx
       env:
         - name: VLLM_URL
           value: 'https://gemma-4-kserve-workload-svc.sandbox.svc.cluster.local:8000/v1'
@@ -33,16 +52,13 @@ spec:
           value: 'fake'
         - name: INFERENCE_MODEL
           value: gemma-4
-        - name: ENABLE_SENTENCE_TRANSFORMERS
-          value: 'true'
-        - name: EMBEDDING_PROVIDER
-          value: sentence-transformers
-        - name: EMBEDDING_MODEL
-          value: granite-embedding-125m-english
-        - name: EMBEDDING_PROVIDER_MODEL_ID
-          value: ibm-granite/granite-embedding-125m-english
-        - name: ENABLE_INLINE_MILVUS
-          value: 'true'
+        # ENABLE_SENTENCE_TRANSFORMERS, EMBEDDING_PROVIDER, EMBEDDING_MODEL,
+        # EMBEDDING_PROVIDER_MODEL_ID, and ENABLE_INLINE_MILVUS used to live
+        # here but do nothing now that spec.overrideConfig (above) replaces
+        # the env-var-driven config generator entirely - see ogx-config.yaml,
+        # which hardcodes the embedding/vector_io provider config directly.
+        # MILVUS_ENDPOINT/TOKEN/SECURE/CONSISTENCY_LEVEL below are still live:
+        # ogx-config.yaml's vector_io provider reads them via ${env.VAR}.
         - name: MILVUS_ENDPOINT
           value: 'http://db.home.glroland.com:19530'
         - name: MILVUS_TOKEN

@@ -10,7 +10,6 @@ from constants import AGENT_SYSTEM_PROMPT
 
 import mlflow
 from mlflow.entities import SpanType
-mlflow.openai.autolog()
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -20,9 +19,6 @@ class AIGateway:
     ENV_OPENAI_BASE_URL = "OPENAI_BASE_URL"
     ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
     ENV_MODEL = "MODEL"
-
-    ENV_MLFLOW_EXPERIMENT_NAME = "MLFLOW_EXPERIMENT_NAME"
-    DEFAULT_EXPERIMENT_NAME = "mechanic.chatbot"
 
     MECHANIC_VECTOR_DB_NAME = "mechanic_vector_db"
 

@@ -6,7 +6,7 @@ VECTORDB_PROVIDER := milvus
 
 MLFLOW_TRACKING_URI := https://rh-ai.apps.ocp.home.glroland.com/mlflow
 MLFLOW_WORKSPACE := mechanic
-MLFLOW_EXPERIMENT_ID := 3
+MLFLOW_EXPERIMENT_NAME := mechanic-chatbot-v2
 MLFLOW_TRACKING_TOKEN := $(shell oc whoami --show-token)
 
 LOG_LEVEL := DEBUG
@@ -36,7 +36,7 @@ run-chatbot:
 	@echo
 	@echo MLFlow Token: $(MLFLOW_TRACKING_TOKEN)
 	@echo
-	cd chatbot/src && MLFLOW_TRACKING_URI=$(MLFLOW_TRACKING_URI) MLFLOW_WORKSPACE=$(MLFLOW_WORKSPACE) MLFLOW_EXPERIMENT_ID=$(MLFLOW_EXPERIMENT_ID) MLFLOW_TRACKING_TOKEN=$(MLFLOW_TRACKING_TOKEN) OPENAI_BASE_URL=$(OPENAI_BASE_URL) OPENAI_API_KEY=$(OPENAI_API_KEY) MODEL=$(MODEL) LOG_LEVEL=$(LOG_LEVEL) streamlit run app.py --server.headless true --server.address 0.0.0.0 --server.port 8080
+	cd chatbot/src && MLFLOW_TRACKING_URI=$(MLFLOW_TRACKING_URI) MLFLOW_WORKSPACE=$(MLFLOW_WORKSPACE) MLFLOW_EXPERIMENT_NAME=$(MLFLOW_EXPERIMENT_NAME) MLFLOW_TRACKING_TOKEN=$(MLFLOW_TRACKING_TOKEN) OPENAI_BASE_URL=$(OPENAI_BASE_URL) OPENAI_API_KEY=$(OPENAI_API_KEY) MODEL=$(MODEL) LOG_LEVEL=$(LOG_LEVEL) streamlit run app.py --server.headless true --server.address 0.0.0.0 --server.port 8080
 
 run-corvetteforummcp:
 	cd corvetteforum-mcp/src && python app.py

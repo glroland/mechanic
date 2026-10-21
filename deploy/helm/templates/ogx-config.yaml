@@ -1,0 +1,252 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mechanic.fullname" . }}-ogx-config
+  labels:
+    {{- include "mechanic.labels" . | nindent 4 }}
+    # Required for the OGX Operator to detect/watch this ConfigMap - see
+    # spec.overrideConfig in ogx_deployment.yaml.
+    ogx.io/watch: "true"
+data:
+  # Verified live 2026-10-21 on a running OGXServer in the mechanic
+  # namespace: the "rh"/"rh-dev" distribution strips inline::sentence-transformers
+  # from its default env-var-driven config generation (confirmed via the
+  # upstream red-hat-data-services/ogx-distribution repo README - the
+  # provider is installed but no ENABLE_* env var wires it up), so
+  # ENABLE_SENTENCE_TRANSFORMERS/EMBEDDING_PROVIDER (previously set in
+  # ogx_deployment.yaml) were silently ignored - the embedding model got
+  # registered against a provider_id that never existed, crashing the pod
+  # at startup with "Provider `sentence-transformers` not found".
+  #
+  # This full config.yaml bypasses that generator entirely via
+  # spec.overrideConfig. It's a copy of what the dynamic generator was
+  # already correctly producing from workload.overrides.env (confirmed via
+  # this exact OGXServer's own startup logs), plus the one missing
+  # inline::sentence-transformers provider block - copied verbatim from the
+  # one other known-working OGXServer on this cluster
+  # (sandbox/llama-stack-config ConfigMap), which solves the same problem
+  # the same way. ${env.VAR} substitution still resolves from
+  # workload.overrides.env below, so VLLM_URL/MILVUS_*/POSTGRES_* changes
+  # don't require editing this file.
+  #
+  # NOTE: once overrideConfig is set, the declarative env-var generator is
+  # bypassed entirely - ENABLE_SENTENCE_TRANSFORMERS, EMBEDDING_PROVIDER,
+  # EMBEDDING_MODEL, EMBEDDING_PROVIDER_MODEL_ID, and ENABLE_INLINE_MILVUS
+  # (all previously in ogx_deployment.yaml's env list) no longer do
+  # anything - removed from there to avoid confusion. If you need a
+  # different embedding model or vector_io backend, edit this file
+  # directly, not those env vars.
+  config.yaml: |
+    version: "2"
+    distro_name: rh
+    apis:
+    - responses
+    - messages
+    - batches
+    - inference
+    - tool_runtime
+    - vector_io
+    - files
+    - file_processors
+    providers:
+      batches:
+      - provider_id: reference
+        provider_type: inline::reference
+        config:
+          sqlstore:
+            backend: sql_default
+            table_name: batches
+      file_processors:
+      - provider_id: auto
+        provider_type: inline::auto
+        config: {}
+      files:
+      - provider_id: meta-reference-files
+        provider_type: inline::localfs
+        config:
+          metadata_store:
+            backend: sql_default
+            table_name: files_metadata
+          storage_dir: /opt/app-root/src/.ogx/distributions/rh/files
+      inference:
+      - provider_id: sentence-transformers
+        provider_type: inline::sentence-transformers
+        config:
+          trust_remote_code: false
+      - provider_id: vllm-inference
+        provider_type: remote::vllm
+        config:
+          api_token: ${env.VLLM_API_TOKEN}
+          base_url: ${env.VLLM_URL}
+          max_tokens: 4096
+          refresh_models: false
+          tls_verify: ${env.VLLM_TLS_VERIFY:=true}
+      messages:
+      - provider_id: builtin
+        provider_type: inline::builtin
+        config:
+          kvstore:
+            backend: kv_default
+            namespace: message_batches
+      responses:
+      - provider_id: meta-reference
+        provider_type: inline::builtin
+        config:
+          persistence:
+            agent_state:
+              backend: kv_default
+              namespace: agents::meta_reference
+            responses:
+              backend: sql_default
+              max_write_queue_size: 10000
+              num_writers: 4
+              table_name: agents_responses
+      tool_runtime:
+      - provider_id: file-search
+        provider_type: inline::file-search
+        config: {}
+      - provider_id: model-context-protocol
+        provider_type: remote::model-context-protocol
+        config: {}
+      vector_io:
+      - provider_id: milvus-remote
+        provider_type: remote::milvus
+        config:
+          consistency_level: ${env.MILVUS_CONSISTENCY_LEVEL:=Bounded}
+          persistence:
+            backend: kv_default
+            namespace: vector_io::milvus_remote
+          secure: ${env.MILVUS_SECURE:=false}
+          token: ${env.MILVUS_TOKEN}
+          uri: ${env.MILVUS_ENDPOINT}
+    registered_resources:
+      models:
+      - metadata:
+          embedding_dimension: 768
+        model_id: granite-embedding-125m-english
+        model_type: embedding
+        provider_id: sentence-transformers
+        provider_model_id: ibm-granite/granite-embedding-125m-english
+      tool_groups: []
+      vector_stores: []
+    server:
+      auth:
+        access_policy:
+        - description: All users can read system resources
+          permit:
+            actions:
+            - read
+          when: resource is unowned
+        - description: Authenticated users can create resources
+          permit:
+            actions:
+            - create
+        - description: Owners can manage their own resources
+          permit:
+            actions:
+            - read
+            - update
+            - delete
+          when: user is owner
+        route_policy: []
+      hsts_max_age: 31536000
+      insecure: true
+      port: 8321
+      registry_refresh_interval_seconds: 300
+      tenancy:
+        mode: disabled
+      workers: 1
+    storage:
+      backends:
+        kv_default:
+          command_timeout: 30.0
+          db: ${env.POSTGRES_DB}
+          host: ${env.POSTGRES_HOST}
+          max_overflow: 10
+          password: ${env.POSTGRES_PASSWORD}
+          pool_size: 5
+          port: ${env.POSTGRES_PORT:=5432}
+          table_name: ogx_kvstore
+          type: kv_postgres
+          user: ${env.POSTGRES_USER}
+        sql_default:
+          db: ${env.POSTGRES_DB}
+          host: ${env.POSTGRES_HOST}
+          max_overflow: 20
+          password: ${env.POSTGRES_PASSWORD}
+          pool_pre_ping: true
+          pool_recycle: 3600
+          pool_size: 10
+          type: sql_postgres
+          user: ${env.POSTGRES_USER}
+      stores:
+        connectors:
+          backend: sql_default
+          table_name: connectors
+        conversations:
+          backend: sql_default
+          table_name: openai_conversations
+        inference:
+          backend: sql_default
+          max_write_queue_size: 10000
+          num_writers: 4
+          table_name: inference_store
+        metadata:
+          backend: kv_default
+          namespace: registry
+        prompts:
+          backend: sql_default
+          table_name: prompts
+        vector_stores:
+          backend: sql_default
+          table_name: vector_store_metadata
+    vector_stores:
+      default_embedding_model:
+        provider_id: sentence-transformers
+        model_id: granite-embedding-125m-english
+      annotation_prompt_params:
+        annotation_instruction_template: 'Cite sources immediately at the end of sentences using <|file-id|> format.'
+        chunk_annotation_template: '[{index}] {metadata_text} cite as <|{file_id}|>
+
+          {chunk_text}
+
+          '
+        enable_annotations: true
+      chunk_retrieval_params:
+        chunk_multiplier: 5
+        default_reranker_strategy: rrf
+        default_search_mode: vector
+        max_tokens_in_context: 4000
+        rrf_impact_factor: 60.0
+        weighted_search_alpha: 0.5
+      context_prompt_params:
+        chunk_annotation_template: 'Result {index}
+
+          Content: {chunk.content}
+
+          Metadata: {metadata}
+
+          '
+        context_template: 'The above results were retrieved to help answer the user''s query: "{query}". Use them as supporting information only in answering this query. {annotation_instruction}
+
+          '
+      contextual_retrieval_params:
+        default_max_concurrency: 3
+        default_timeout_seconds: 120
+        max_document_tokens: 100000
+      file_batch_params:
+        cleanup_interval_seconds: 86400
+        file_batch_chunk_size: 10
+        max_concurrent_files_per_batch: 3
+      file_ingestion_params:
+        default_chunk_overlap_tokens: 128
+        default_chunk_size_tokens: 512
+      file_search_params:
+        footer_template: 'END of file_search tool results.
+
+          '
+        header_template: 'file_search tool found {num_chunks} chunks:
+
+          BEGIN of file_search tool results.
+
+          '

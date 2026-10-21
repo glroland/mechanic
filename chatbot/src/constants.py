@@ -17,7 +17,6 @@ class SessionStateVariables:
     MODEL = "model"
     GATEWAY = "gateway"
     RESPONSES = "responses"
-    MLFLOW_RUN_ID = "mlflow_run_id"
 
 # pylint: disable=too-few-public-methods
 class AppUserInterfaceElements:
@@ -50,6 +49,4 @@ class MessageAttributes:
 class EnvironmentVariables:
     """ Environment Variables """
 
-    MLFLOW_TRACKING_TOKEN = "MLFLOW_TRACKING_TOKEN"
-    SET_TOKEN_FROM_FILE = "SET_TOKEN_FROM_FILE"
     LOG_LEVEL = "LOG_LEVEL"
