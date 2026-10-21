@@ -109,32 +109,32 @@ data:
         provider_type: remote::model-context-protocol
         config: {}
       vector_io:
-      - provider_id: chroma
-        # Confirmed live 2026-10-21: this crashed startup with "Provider
-        # `inline::chroma` is not available for API `Api.vector_io`" -
-        # ogx.providers.registry.vector_io registers this provider's
-        # provider_type as "inline::chromadb" (not "inline::chroma"), even
-        # though its module path is ogx.providers.inline.vector_io.chroma.
-        provider_type: inline::chromadb
+      - provider_id: faiss
+        # Tried inline::milvus first: confirmed live that
+        # ogx.providers.remote.vector_io.milvus.milvus.MilvusIndex
+        # .initialize() only calls pymilvus's load_collection() on the
+        # fresh-creation path, so every OGX pod restart left an
+        # already-persisted collection in Milvus's "released" state and
+        # broke every search until the vector store was deleted and
+        # re-ingested. Tried inline::chromadb next (the registered
+        # provider_type for ogx.providers.inline.vector_io.chroma - not
+        # "inline::chroma", a wrong guess that crashed startup outright):
+        # that crashed too, with "ModuleNotFoundError: No module named
+        # 'chromadb'" - confirmed live that chromadb isn't actually
+        # installed in this distribution image, despite being a registered
+        # provider. inline::faiss's pip_packages (faiss-cpu) ARE installed
+        # (confirmed via `python3 -c "import faiss"` in a throwaway debug
+        # pod from this same image), and its config has no db_path at all -
+        # ogx.providers.inline.vector_io.faiss.faiss.FaissVectorIOAdapter
+        # .initialize() fully deserializes the vector index out of the
+        # persistence KV store (kv_default -> our already-required Postgres)
+        # on every startup, so there's no on-disk file lock to race and no
+        # separate load/release lifecycle to get stuck in.
+        provider_type: inline::faiss
         config:
-          # Embedded ChromaDB, not inline::milvus: read directly out of the
-          # running server image's ogx.providers.remote.vector_io.milvus.milvus
-          # .MilvusIndex.initialize() - when a collection already exists it
-          # just `return`s without ever calling load_collection() (that only
-          # happens on pymilvus's fresh-create path), so every OGX pod
-          # restart left the persisted collection in Milvus's "released"
-          # state and broke every search with "call load() before
-          # search/get/query" until the vector store was deleted and
-          # re-ingested. ogx.providers.remote.vector_io.chroma.chroma
-          # .ChromaIndex.initialize() is a no-op - Chroma has no separate
-          # load/release state, so a restart can't reproduce this.
-          # ogx.providers.inline.vector_io.chroma.config.ChromaVectorIOConfig
-          # also only wants db_path + persistence (no uri/token/secure,
-          # same shape as the milvus config it replaces).
-          db_path: ${env.CHROMADB_PATH:=/.ogx/chroma}
           persistence:
             backend: kv_default
-            namespace: vector_io::chroma
+            namespace: vector_io::faiss
     registered_resources:
       models:
       - metadata:

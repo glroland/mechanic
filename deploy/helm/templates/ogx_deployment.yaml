@@ -57,22 +57,13 @@ spec:
         # here but do nothing now that spec.overrideConfig (above) replaces
         # the env-var-driven config generator entirely - see ogx-config.yaml,
         # which hardcodes the embedding/vector_io provider config directly.
-        # First switched from remote::milvus (db.home.glroland.com:19530) to
-        # inline::milvus (embedded Milvus Lite) after the remote server's
-        # downtime took out an AutoRAG run - then switched again, to
-        # inline::chroma, after discovering live that inline::milvus breaks
-        # search on every OGX pod restart (confirmed in
-        # ogx.providers.remote.vector_io.milvus.milvus.MilvusIndex
-        # .initialize(): it skips load_collection() whenever the collection
-        # already exists, leaving a persisted collection "released" and
-        # every search failing until the vector store is deleted and
-        # re-ingested). See ogx-config.yaml for the full story. CHROMADB_PATH
-        # below is what ogx-config.yaml's vector_io provider reads via
-        # ${env.VAR}; it must point under workload.storage.mountPath (/.ogx)
-        # so the db survives pod restarts instead of living on the
-        # container's ephemeral filesystem.
-        - name: CHROMADB_PATH
-          value: '/.ogx/chroma'
+        # Went through remote::milvus -> inline::milvus -> inline::chromadb
+        # before landing on inline::faiss - see the long comment on
+        # providers.vector_io in ogx-config.yaml for why each prior one was
+        # dropped. inline::faiss's config has no db_path/MILVUS_*/CHROMADB_*
+        # env var at all - it persists entirely through the Postgres-backed
+        # kv_default storage backend configured below, so no vector_io-
+        # specific env vars are needed here any more.
         # Verified live: the "rh" distribution's StackConfig requires a
         # Postgres-backed KV + SQL state store at startup regardless of which
         # vector_io backend (Milvus here) is used - omitting these crashes the
