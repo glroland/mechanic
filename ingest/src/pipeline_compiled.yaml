@@ -238,9 +238,9 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.7.1'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'ogx-client==1.5.0'\
           \ 'fire' 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -257,7 +257,7 @@ deploymentSpec:
           \ vector_store_name: str,\n    embedding_model_id: str,\n    max_tokens:\
           \ int,\n    chunk_overlap_tokens: int,\n    base_url: str,\n    pdf_filenames:\
           \ str,\n    timeout: float,\n):\n    import io\n    import requests\n  \
-          \  from llama_stack_client import LlamaStackClient\n\n    client = LlamaStackClient(base_url=service_url)\n\
+          \  from ogx_client import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\
           \n    # Upload all files first and collect file_ids\n    file_ids = []\n\
           \    for filename in pdf_filenames.split(\",\"):\n        source = f\"{base_url}/{filename.strip()}\"\
           \n        print(\"Downloading and uploading document:\", source)\n\n   \
@@ -271,39 +271,45 @@ deploymentSpec:
           \            print(f\"Successfully uploaded {file_basename} (file_id: {file.id})\"\
           )\n\n        except Exception as e:\n            print(f\"ERROR: Failed\
           \ to upload {filename.strip()}: {str(e)}\")\n            raise\n\n    print(f\"\
-          Successfully uploaded {len(file_ids)} files: {file_ids}\")\n\n    models\
-          \ = client.models.list()\n    matching_model = next((m for m in models if\
-          \ m.id == embedding_model_id), None)\n\n    if not matching_model:\n   \
-          \     available = [m.id for m in models]\n        raise ValueError(\n  \
-          \          f\"Model '{embedding_model_id}' not found. Available: {available}\"\
-          \n        )\n\n    model_type = (\n        matching_model.custom_metadata.get(\"\
-          model_type\")\n        if matching_model.custom_metadata\n        else None\n\
-          \    )\n    if model_type != \"embedding\":\n        raise ValueError(\n\
-          \            f\"Model '{embedding_model_id}' is not an embedding model (type={model_type})\"\
-          \n        )\n\n    embedding_dimension = int(\n        float(matching_model.custom_metadata.get(\"\
-          embedding_dimension\"))\n    )\n\n    # Warm up the embedding model\n  \
-          \  client.embeddings.create(\n        model=embedding_model_id,\n      \
-          \  input=\"warmup\",\n        timeout=timeout,\n    )\n\n    # Create empty\
-          \ vector store first, before inserting files.\n    # Purpose: Depending\
-          \ on the size and number of files, attempting to create the vector store\n\
-          \    # and add files in a single step may lead to timeouts.\n    try:\n\
-          \        vector_store = client.vector_stores.create(\n            name=vector_store_name,\n\
-          \            file_ids=[],\n            chunking_strategy={\n           \
-          \     \"type\": \"static\",\n                \"static\": {\n           \
-          \         \"max_chunk_size_tokens\": max_tokens,\n                    \"\
-          chunk_overlap_tokens\": chunk_overlap_tokens,\n                },\n    \
-          \        },\n            extra_body={\n                \"embedding_model\"\
-          : embedding_model_id,\n                \"embedding_dimension\": embedding_dimension,\n\
-          \                \"provider_id\": \"milvus\",\n            },\n        \
-          \    timeout=timeout,\n        )\n        print(\n            f\"Successfully\
-          \ created vector store '{vector_store_name}' with ID: {vector_store.id}\"\
-          \n        )\n    except Exception as e:\n        print(f\"ERROR: Failed\
-          \ to create vector store '{vector_store_name}': {str(e)}\")\n        raise\n\
-          \n    # Add files to vector store\n    try:\n        for file_id in file_ids:\n\
-          \            print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
-          )\n            client.vector_stores.files.create(\n                vector_store_id=vector_store.id,\n\
-          \                file_id=file_id,\n                timeout=timeout,\n  \
-          \          )\n        vector_store = client.vector_stores.retrieve(vector_store.id)\n\
+          Successfully uploaded {len(file_ids)} files: {file_ids}\")\n\n    # client.models.list()\
+          \ returns a oneOf wrapper; .actual_instance is the\n    # real OpenAIListModelsResponse\
+          \ with a .data list of OpenAIModel objects\n    # (confirmed: OpenAIModel\
+          \ has the same id/custom_metadata fields the\n    # native llama-stack Model\
+          \ type did).\n    models = client.models.list().actual_instance.data\n \
+          \   matching_model = next((m for m in models if m.id == embedding_model_id),\
+          \ None)\n\n    if not matching_model:\n        available = [m.id for m in\
+          \ models]\n        raise ValueError(\n            f\"Model '{embedding_model_id}'\
+          \ not found. Available: {available}\"\n        )\n\n    model_type = (\n\
+          \        matching_model.custom_metadata.get(\"model_type\")\n        if\
+          \ matching_model.custom_metadata\n        else None\n    )\n    if model_type\
+          \ != \"embedding\":\n        raise ValueError(\n            f\"Model '{embedding_model_id}'\
+          \ is not an embedding model (type={model_type})\"\n        )\n\n    embedding_dimension\
+          \ = int(\n        float(matching_model.custom_metadata.get(\"embedding_dimension\"\
+          ))\n    )\n\n    # Warm up the embedding model\n    client.embeddings.create(\n\
+          \        model=embedding_model_id,\n        input=\"warmup\",\n        _request_timeout=timeout,\n\
+          \    )\n\n    # Create empty vector store first, before inserting files.\n\
+          \    # Purpose: Depending on the size and number of files, attempting to\
+          \ create the vector store\n    # and add files in a single step may lead\
+          \ to timeouts.\n    try:\n        vector_store = client.vector_stores.create(\n\
+          \            name=vector_store_name,\n            file_ids=[],\n       \
+          \     chunking_strategy={\n                \"type\": \"static\",\n     \
+          \           \"static\": {\n                    \"max_chunk_size_tokens\"\
+          : max_tokens,\n                    \"chunk_overlap_tokens\": chunk_overlap_tokens,\n\
+          \                },\n            },\n            extra_body={\n        \
+          \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
+          : embedding_dimension,\n                \"provider_id\": \"milvus\",\n \
+          \           },\n            _request_timeout=timeout,\n        )\n     \
+          \   print(\n            f\"Successfully created vector store '{vector_store_name}'\
+          \ with ID: {vector_store.id}\"\n        )\n    except Exception as e:\n\
+          \        print(f\"ERROR: Failed to create vector store '{vector_store_name}':\
+          \ {str(e)}\")\n        raise\n\n    # Add files to vector store\n    try:\n\
+          \        for file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
+          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
+          \ client.vector_stores_files, not client.vector_stores.files -\n       \
+          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          \            client.vector_stores_files.create(\n                vector_store_id=vector_store.id,\n\
+          \                file_id=file_id,\n                _request_timeout=timeout,\n\
+          \            )\n        vector_store = client.vector_stores.retrieve(vector_store.id)\n\
           \        print(f\"Vector store details: {vector_store}\")\n    except Exception\
           \ as e:\n        print(f\"WARNING: Some files failed to be added to vector\
           \ store: {str(e)}\")\n\n"
@@ -334,9 +340,9 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client==0.7.1'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'ogx-client==1.5.0'\
           \ 'fire' 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -353,7 +359,7 @@ deploymentSpec:
           \ vector_store_name: str,\n    embedding_model_id: str,\n    max_tokens:\
           \ int,\n    chunk_overlap_tokens: int,\n    base_url: str,\n    pdf_filenames:\
           \ str,\n    timeout: float,\n):\n    import io\n    import requests\n  \
-          \  from llama_stack_client import LlamaStackClient\n\n    client = LlamaStackClient(base_url=service_url)\n\
+          \  from ogx_client import OgxClient\n\n    client = OgxClient(base_url=service_url)\n\
           \n    # Upload all files first and collect file_ids\n    file_ids = []\n\
           \    for filename in pdf_filenames.split(\",\"):\n        source = f\"{base_url}/{filename.strip()}\"\
           \n        print(\"Downloading and uploading document:\", source)\n\n   \
@@ -367,39 +373,45 @@ deploymentSpec:
           \            print(f\"Successfully uploaded {file_basename} (file_id: {file.id})\"\
           )\n\n        except Exception as e:\n            print(f\"ERROR: Failed\
           \ to upload {filename.strip()}: {str(e)}\")\n            raise\n\n    print(f\"\
-          Successfully uploaded {len(file_ids)} files: {file_ids}\")\n\n    models\
-          \ = client.models.list()\n    matching_model = next((m for m in models if\
-          \ m.id == embedding_model_id), None)\n\n    if not matching_model:\n   \
-          \     available = [m.id for m in models]\n        raise ValueError(\n  \
-          \          f\"Model '{embedding_model_id}' not found. Available: {available}\"\
-          \n        )\n\n    model_type = (\n        matching_model.custom_metadata.get(\"\
-          model_type\")\n        if matching_model.custom_metadata\n        else None\n\
-          \    )\n    if model_type != \"embedding\":\n        raise ValueError(\n\
-          \            f\"Model '{embedding_model_id}' is not an embedding model (type={model_type})\"\
-          \n        )\n\n    embedding_dimension = int(\n        float(matching_model.custom_metadata.get(\"\
-          embedding_dimension\"))\n    )\n\n    # Warm up the embedding model\n  \
-          \  client.embeddings.create(\n        model=embedding_model_id,\n      \
-          \  input=\"warmup\",\n        timeout=timeout,\n    )\n\n    # Create empty\
-          \ vector store first, before inserting files.\n    # Purpose: Depending\
-          \ on the size and number of files, attempting to create the vector store\n\
-          \    # and add files in a single step may lead to timeouts.\n    try:\n\
-          \        vector_store = client.vector_stores.create(\n            name=vector_store_name,\n\
-          \            file_ids=[],\n            chunking_strategy={\n           \
-          \     \"type\": \"static\",\n                \"static\": {\n           \
-          \         \"max_chunk_size_tokens\": max_tokens,\n                    \"\
-          chunk_overlap_tokens\": chunk_overlap_tokens,\n                },\n    \
-          \        },\n            extra_body={\n                \"embedding_model\"\
-          : embedding_model_id,\n                \"embedding_dimension\": embedding_dimension,\n\
-          \                \"provider_id\": \"milvus\",\n            },\n        \
-          \    timeout=timeout,\n        )\n        print(\n            f\"Successfully\
-          \ created vector store '{vector_store_name}' with ID: {vector_store.id}\"\
-          \n        )\n    except Exception as e:\n        print(f\"ERROR: Failed\
-          \ to create vector store '{vector_store_name}': {str(e)}\")\n        raise\n\
-          \n    # Add files to vector store\n    try:\n        for file_id in file_ids:\n\
-          \            print(f\"Adding file_id '{file_id}' to vector store '{vector_store_name}'\"\
-          )\n            client.vector_stores.files.create(\n                vector_store_id=vector_store.id,\n\
-          \                file_id=file_id,\n                timeout=timeout,\n  \
-          \          )\n        vector_store = client.vector_stores.retrieve(vector_store.id)\n\
+          Successfully uploaded {len(file_ids)} files: {file_ids}\")\n\n    # client.models.list()\
+          \ returns a oneOf wrapper; .actual_instance is the\n    # real OpenAIListModelsResponse\
+          \ with a .data list of OpenAIModel objects\n    # (confirmed: OpenAIModel\
+          \ has the same id/custom_metadata fields the\n    # native llama-stack Model\
+          \ type did).\n    models = client.models.list().actual_instance.data\n \
+          \   matching_model = next((m for m in models if m.id == embedding_model_id),\
+          \ None)\n\n    if not matching_model:\n        available = [m.id for m in\
+          \ models]\n        raise ValueError(\n            f\"Model '{embedding_model_id}'\
+          \ not found. Available: {available}\"\n        )\n\n    model_type = (\n\
+          \        matching_model.custom_metadata.get(\"model_type\")\n        if\
+          \ matching_model.custom_metadata\n        else None\n    )\n    if model_type\
+          \ != \"embedding\":\n        raise ValueError(\n            f\"Model '{embedding_model_id}'\
+          \ is not an embedding model (type={model_type})\"\n        )\n\n    embedding_dimension\
+          \ = int(\n        float(matching_model.custom_metadata.get(\"embedding_dimension\"\
+          ))\n    )\n\n    # Warm up the embedding model\n    client.embeddings.create(\n\
+          \        model=embedding_model_id,\n        input=\"warmup\",\n        _request_timeout=timeout,\n\
+          \    )\n\n    # Create empty vector store first, before inserting files.\n\
+          \    # Purpose: Depending on the size and number of files, attempting to\
+          \ create the vector store\n    # and add files in a single step may lead\
+          \ to timeouts.\n    try:\n        vector_store = client.vector_stores.create(\n\
+          \            name=vector_store_name,\n            file_ids=[],\n       \
+          \     chunking_strategy={\n                \"type\": \"static\",\n     \
+          \           \"static\": {\n                    \"max_chunk_size_tokens\"\
+          : max_tokens,\n                    \"chunk_overlap_tokens\": chunk_overlap_tokens,\n\
+          \                },\n            },\n            extra_body={\n        \
+          \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
+          : embedding_dimension,\n                \"provider_id\": \"milvus\",\n \
+          \           },\n            _request_timeout=timeout,\n        )\n     \
+          \   print(\n            f\"Successfully created vector store '{vector_store_name}'\
+          \ with ID: {vector_store.id}\"\n        )\n    except Exception as e:\n\
+          \        print(f\"ERROR: Failed to create vector store '{vector_store_name}':\
+          \ {str(e)}\")\n        raise\n\n    # Add files to vector store\n    try:\n\
+          \        for file_id in file_ids:\n            print(f\"Adding file_id '{file_id}'\
+          \ to vector store '{vector_store_name}'\")\n            # Note: this is\
+          \ client.vector_stores_files, not client.vector_stores.files -\n       \
+          \     # ogx-client puts it at the top level, unlike llama_stack_client.\n\
+          \            client.vector_stores_files.create(\n                vector_store_id=vector_store.id,\n\
+          \                file_id=file_id,\n                _request_timeout=timeout,\n\
+          \            )\n        vector_store = client.vector_stores.retrieve(vector_store.id)\n\
           \        print(f\"Vector store details: {vector_store}\")\n    except Exception\
           \ as e:\n        print(f\"WARNING: Some files failed to be added to vector\
           \ store: {str(e)}\")\n\n"
@@ -479,7 +491,7 @@ root:
         parameterType: STRING
       timeout:
         defaultValue: 300.0
-        description: Timeout to use for each LLama Stack API call
+        description: Timeout to use for each OGX (formerly Llama Stack) API call
         isOptional: true
         parameterType: NUMBER_DOUBLE
       use_gpu:
@@ -493,7 +505,7 @@ root:
         isOptional: true
         parameterType: STRING
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.16.1
+sdkVersion: kfp-2.17.0
 ---
 platforms:
   kubernetes:

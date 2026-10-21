@@ -9,16 +9,24 @@ PYTORCH_CUDA_IMAGE = "quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py312-ubi9@
 
 @dsl.component(
     base_image=PYTORCH_CUDA_IMAGE,
-    # TODO: Llama Stack was renamed to OGX in OpenShift AI 3.5, and
-    # llama-stack-client has a successor package "ogx-client" on PyPI, but its
-    # published interface is a generated REST client (ogx_client.ApiClient /
-    # ogx_client.AdminApi) rather than the ergonomic client.files.create() /
-    # client.vector_stores.create() / client.models.list() /
-    # client.embeddings.create() surface llama-stack-client exposed and that
-    # this function relies on below. Don't swap the import without confirming
-    # against your actual OGX server which package/version still provides that
-    # surface - verify before changing packages_to_install or the import.
-    packages_to_install=["llama-stack-client==0.7.1", "fire", "requests"],
+    # Llama Stack was renamed to OGX in OpenShift AI 3.5. llama-stack-client's
+    # successor is "ogx-client" on PyPI (verified 2026-10-21 by installing it
+    # in a scratch venv and reading its generated source/pydantic schemas -
+    # no live OGX server was reachable from that sandbox to round-trip an
+    # actual HTTP call, so this is confirmed at the request/response-shape
+    # level, not end-to-end). It's a generated client (ogx_client.OgxClient),
+    # but it's still the ergonomic one: client.files / client.models /
+    # client.embeddings / client.vector_stores / client.vector_stores_files
+    # all exist and accept the same kwargs/dict style used below - its
+    # "WithExtraBody" request models explicitly route any unrecognized kwarg
+    # (including ones passed via extra_body=) into their additional_properties
+    # field, so embedding_model/embedding_dimension/provider_id survive
+    # unchanged. Two real differences from llama_stack_client:
+    #   - client.vector_stores.files is now the top-level client.vector_stores_files
+    #   - "timeout=" isn't a real kwarg on these calls; use "_request_timeout="
+    # and client.models.list() returns a oneOf wrapper - unwrap via
+    # ".actual_instance.data" to get the list of models.
+    packages_to_install=["ogx-client==1.5.0", "fire", "requests"],
 )
 def register_vector_store_and_files(
     service_url: str,
@@ -32,9 +40,9 @@ def register_vector_store_and_files(
 ):
     import io
     import requests
-    from llama_stack_client import LlamaStackClient
+    from ogx_client import OgxClient
 
-    client = LlamaStackClient(base_url=service_url)
+    client = OgxClient(base_url=service_url)
 
     # Upload all files first and collect file_ids
     file_ids = []
@@ -64,7 +72,11 @@ def register_vector_store_and_files(
 
     print(f"Successfully uploaded {len(file_ids)} files: {file_ids}")
 
-    models = client.models.list()
+    # client.models.list() returns a oneOf wrapper; .actual_instance is the
+    # real OpenAIListModelsResponse with a .data list of OpenAIModel objects
+    # (confirmed: OpenAIModel has the same id/custom_metadata fields the
+    # native llama-stack Model type did).
+    models = client.models.list().actual_instance.data
     matching_model = next((m for m in models if m.id == embedding_model_id), None)
 
     if not matching_model:
@@ -91,7 +103,7 @@ def register_vector_store_and_files(
     client.embeddings.create(
         model=embedding_model_id,
         input="warmup",
-        timeout=timeout,
+        _request_timeout=timeout,
     )
 
     # Create empty vector store first, before inserting files.
@@ -113,7 +125,7 @@ def register_vector_store_and_files(
                 "embedding_dimension": embedding_dimension,
                 "provider_id": "milvus",
             },
-            timeout=timeout,
+            _request_timeout=timeout,
         )
         print(
             f"Successfully created vector store '{vector_store_name}' with ID: {vector_store.id}"
@@ -126,10 +138,12 @@ def register_vector_store_and_files(
     try:
         for file_id in file_ids:
             print(f"Adding file_id '{file_id}' to vector store '{vector_store_name}'")
-            client.vector_stores.files.create(
+            # Note: this is client.vector_stores_files, not client.vector_stores.files -
+            # ogx-client puts it at the top level, unlike llama_stack_client.
+            client.vector_stores_files.create(
                 vector_store_id=vector_store.id,
                 file_id=file_id,
-                timeout=timeout,
+                _request_timeout=timeout,
             )
         vector_store = client.vector_stores.retrieve(vector_store.id)
         print(f"Vector store details: {vector_store}")

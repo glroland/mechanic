@@ -48,7 +48,7 @@ cd ingest/src && python import.py <openai_baseurl> <embedding_model> <vdb_provid
 
 **`ingest/`** — Data ingestion into Milvus
 - `import.py`: CLI tool (uses `click`). Converts a markdown file into chunks (split by `#`/`##`/`###` headers using `langchain_text_splitters`), then uploads each chunk as a file to OGX's vector store API via the OpenAI SDK. Deletes and recreates the `mechanic_vector_db` vector store on each run.
-- `pipeline.py`: Kubeflow Pipelines (KFP) definition. Downloads the PDF directly from GitHub, uploads to OGX, and creates the vector store. Still depends on the pre-rename `llama-stack-client` package — see the TODO comment in the file before touching it. Run `python pipeline.py` to compile to `pipeline_compiled.yaml`.
+- `pipeline.py`: Kubeflow Pipelines (KFP) definition. Downloads the PDF directly from GitHub, uploads to OGX, and creates the vector store. Uses `ogx-client` (the successor to `llama-stack-client`) via `OgxClient` — see the comment on the component decorator for the handful of call-shape differences (`client.vector_stores_files` instead of `client.vector_stores.files`, `_request_timeout=` instead of `timeout=`, `client.models.list().actual_instance.data`). Run `python pipeline.py` to compile to `pipeline_compiled.yaml`.
 
 **`corvetteforum-mcp/`** — MCP server (`src/app.py`)
 - Exposes a single tool `search_c3_tech_support` via FastMCP/SSE.
