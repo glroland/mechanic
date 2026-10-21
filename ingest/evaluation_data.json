@@ -1,24 +1,223 @@
 [
   {
-    "question": "<question 1>",
+    "question": "Where is the engine identification number stamped on a C3 Corvette engine block, and what do the letters/numbers in it tell you?",
     "correct_answers": [
-      "<first answer for question 1>",
-      "<second answer for question 1>",
-      "..."
+      "It is stamped on a pad at the lower front edge of the right side cylinder head.",
+      "The first letter identifies the plant that manufactured the engine, the numbers that follow identify the production date, and the two- or three-letter suffix identifies the engine type and related equipment."
     ],
-    "correct_answer_document_ids": [
-      "<name of first document used to determine answers>",
-      "<name of second document used to determine answers>",
-      "..."
-    ]
+    "correct_answer_document_ids": ["c3_repair.md"]
   },
   {
-    "question": "<question 2>",
+    "question": "Where is the vehicle serial number (VIN) plate located on 1968-76 Corvettes compared to 1977-82 Corvettes?",
     "correct_answers": [
-      "..."
+      "On 1968-76 models it is on the top left of the instrument panel.",
+      "On 1977-82 models it is on the inside left windshield pillar post."
     ],
-    "correct_answer_document_ids": [
-      "..."
-    ]
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "Where is the rear axle serial number located on a Corvette Stingray, and what does its prefix identify?",
+    "correct_answers": [
+      "It is on the bottom surface of the axle carrier, at the cover mounting flange.",
+      "The two- or three-letter prefix in the serial number identifies the rear-axle gear ratio."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "How often should a paper air cleaner element be replaced on a 1975-84 Corvette?",
+    "correct_answers": [
+      "Every 30,000 miles.",
+      "More often than that if the car is driven in dusty conditions."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "How should a reusable polyurethane air cleaner element be cleaned, and what should never be used on it?",
+    "correct_answers": [
+      "Remove it and clean it in kerosene, then soak it in SAE 30 oil and squeeze it dry.",
+      "Never use paint thinner or a similar solvent on it."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "On a 1975-84 Corvette, how often should the PCV valve and PCV filter be replaced?",
+    "correct_answers": [
+      "Every 30,000 miles.",
+      "Earlier model years used shorter intervals: every 12,000 miles for 1963-71 and every 24,000 miles for 1972-74."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "How often should drive belts be inspected, and how do you check whether belt tension is correct?",
+    "correct_answers": [
+      "Check drive belts every 6,000 miles for cracking, fraying, and incorrect tension.",
+      "Check tension by pressing on the belt midway between the pulleys with moderate thumb pressure and observing how much it deflects."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "On a car with a Delco Freedom or Freedom II battery, what does the built-in indicator tell you, and when should you not attempt to recharge the battery?",
+    "correct_answers": [
+      "A green indicator means the battery is sufficiently charged and in good condition; a darkened indicator means the battery is discharged and the cause should be found before recharging and testing it.",
+      "If the indicator is light with no green dot visible, or yellow, the battery must be replaced and should not be tested or recharged."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "How often should battery terminals be cleaned, and what should be applied to them afterward?",
+    "correct_answers": [
+      "Every 3 months or so, disconnect the battery and clean the terminals of both the battery and the cables.",
+      "After cleaning and reconnecting the battery, apply a corrosion inhibitor meant specifically for that purpose."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "At minimum how often should the engine cooling system be flushed and refilled, and what is the standard coolant mixture ratio?",
+    "correct_answers": [
+      "At least once every 2 years.",
+      "A 50/50 mixture of ethylene glycol antifreeze and water."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What should you do to a radiator petcock before opening it to drain the coolant?",
+    "correct_answers": [
+      "Spray it with some penetrating lubricant before opening it."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "How often should tires be rotated, and what is an important exception to the standard rotation pattern?",
+    "correct_answers": [
+      "Tires should be rotated about every 6,000 miles.",
+      "Radial tires should be kept on the same side of the car and not cross-switched, and studded snow tires should not be rotated at all."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "On a Corvette with optional knock-off aluminum wheels, how often should the knock-off nut be tightened when the wheels are new, and how?",
+    "correct_answers": [
+      "Every 100 miles for the first 500 miles.",
+      "By striking the ears of the nut eight hard blows with the knock-off hammer."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What are the recommended replacement intervals for the carburetor-mounted fuel filter versus the Carter AFB in-line filter versus the Rochester/Throttle Body Injection in-line filter?",
+    "correct_answers": [
+      "The carburetor-mounted filter (Carter WCFB, Rochester Quadrajet, Holley 2300, Holley 4150) should be replaced at least every 12,000 miles.",
+      "The Carter AFB's in-line filter should be replaced every 24,000 miles.",
+      "The Rochester and Throttle Body fuel injection in-line filter should be replaced every 15,000 miles."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What type of gear lubricant is recommended for the manual transmission?",
+    "correct_answers": [
+      "SAE 80W-90 GL-5 gear lubricant."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "When reinstalling the automatic transmission pan, what torque and tightening pattern should be used for the pan bolts?",
+    "correct_answers": [
+      "Tighten the pan bolts to 12-14 ft. lbs.",
+      "Tighten them in a criss-cross pattern, then recheck the torque after all bolts have been tightened once."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "When reinstalling the rear axle housing cover, what torque and tightening pattern should be used for the cover bolts?",
+    "correct_answers": [
+      "Torque the cover bolts to 20 ft. lbs.",
+      "Tighten them in a crosswise pattern."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "During an automatic transmission fluid change, what does dark or burnt-smelling fluid indicate?",
+    "correct_answers": [
+      "It indicates transmission damage, and the transmission should be checked professionally."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What is the firing order for the Corvette's V8 engines, and which direction does the distributor rotate?",
+    "correct_answers": [
+      "The firing order is 1-8-4-3-6-5-7-2.",
+      "The distributor rotates clockwise."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "When performing a compression test, what is generally considered an acceptable compression reading, and how much variation between cylinders is acceptable?",
+    "correct_answers": [
+      "A cylinder's compression is usually acceptable if it is not less than 80% of the maximum specification.",
+      "The difference between cylinders should be no more than 12-14 pounds."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "During a compression test, if a cylinder reads low and adding a tablespoon of oil through the spark plug hole raises the reading, what does that indicate? What if the reading stays low?",
+    "correct_answers": [
+      "If compression comes up after adding oil, the piston rings or cylinder bore are likely worn or damaged.",
+      "If the compression stays low, the valves may not be seating properly (indicating a valve job is needed) or the head gasket may be blown near that cylinder; low readings in two adjacent cylinders with no improvement from oil point to head gasket leakage."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What is the initial breaker point gap setting, and what happens to dwell angle and coil output if the points are set too wide?",
+    "correct_answers": [
+      "The initial point gap setting is 0.019 in.",
+      "A point gap that is too wide causes a smaller dwell angle, excessive arcing and point burning, and decreased coil output."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "When adjusting valve lash on a hydraulic-lifter engine, what does 'zero lash' mean, and how much further should the rocker arm nut be tightened after reaching it?",
+    "correct_answers": [
+      "Zero lash is the point reached by slowly tightening the rocker arm nut clockwise until the valvetrain clatter just stops.",
+      "From zero lash, the nut should be tightened one full additional turn, done gradually while waiting for the idle to smooth out between increments."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "In idle mixture adjustment procedures, what does the term 'lean roll' mean?",
+    "correct_answers": [
+      "It means turning the idle mixture screws in (clockwise) from the optimum setting until there is an obvious drop in engine speed, usually about 20 rpm."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "Since what model year have Corvettes had an underhood tune-up specifications decal, and which specifications take precedence if the decal disagrees with a printed specifications chart?",
+    "correct_answers": [
+      "Beginning in 1968, all models have had a tune-up specifications decal in the engine compartment.",
+      "If the underhood sticker specifications differ from a printed chart, the sticker specifications take precedence."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What is the correct sequence for manually bleeding the hydraulic brake system, and why should the front of the car be raised higher than the rear when bleeding the rear brakes?",
+    "correct_answers": [
+      "The correct bleeding sequence is left rear wheel cylinder, right rear, right front, left front.",
+      "Raising the front higher than the rear positions the rear caliper bleeder valve near the 12 o'clock position, preventing air from being trapped in the caliper."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "When splicing a new wire into a fusible link circuit, what type of solder should be used, why, and how should the splice be weatherproofed?",
+    "correct_answers": [
+      "Use rosin core solder; acid core solder can cause corrosion.",
+      "Tape and seal all splices with silicone to weatherproof the repair."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
+  },
+  {
+    "question": "What does 'clutch pedal free travel' measure, and how is it generally set when adjusting the clutch linkage (1975-81 models)?",
+    "correct_answers": [
+      "Clutch pedal free travel is the distance the pedal can be moved before the throwout bearing contacts the pressure plate spring.",
+      "It is set by loosening the locknuts on the clutch linkage shaft, pushing the shaft until the throwout bearing just touches the pressure plate spring, then tightening the locknuts against the swivel to lock that position in."
+    ],
+    "correct_answer_document_ids": ["c3_repair.md"]
   }
 ]
