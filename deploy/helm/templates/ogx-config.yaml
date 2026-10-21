@@ -109,21 +109,27 @@ data:
         provider_type: remote::model-context-protocol
         config: {}
       vector_io:
-      - provider_id: milvus
-        provider_type: inline::milvus
+      - provider_id: chroma
+        provider_type: inline::chroma
         config:
-          # Embedded Milvus Lite: no remote server, just a local file on the
-          # operator-managed PVC (workload.storage.mountPath in
-          # ogx_deployment.yaml) - confirmed against
-          # ogx.providers.inline.vector_io.milvus.config.MilvusVectorIOConfig
-          # in the running server image, which wants db_path (a local file
-          # path) + persistence (a KVStoreReference), not uri/token/secure
-          # like the remote::milvus provider this replaces.
-          db_path: ${env.MILVUS_DB_PATH:=/.ogx}/milvus.db
-          consistency_level: ${env.MILVUS_CONSISTENCY_LEVEL:=Strong}
+          # Embedded ChromaDB, not inline::milvus: read directly out of the
+          # running server image's ogx.providers.remote.vector_io.milvus.milvus
+          # .MilvusIndex.initialize() - when a collection already exists it
+          # just `return`s without ever calling load_collection() (that only
+          # happens on pymilvus's fresh-create path), so every OGX pod
+          # restart left the persisted collection in Milvus's "released"
+          # state and broke every search with "call load() before
+          # search/get/query" until the vector store was deleted and
+          # re-ingested. ogx.providers.remote.vector_io.chroma.chroma
+          # .ChromaIndex.initialize() is a no-op - Chroma has no separate
+          # load/release state, so a restart can't reproduce this.
+          # ogx.providers.inline.vector_io.chroma.config.ChromaVectorIOConfig
+          # also only wants db_path + persistence (no uri/token/secure,
+          # same shape as the milvus config it replaces).
+          db_path: ${env.CHROMADB_PATH:=/.ogx/chroma}
           persistence:
             backend: kv_default
-            namespace: vector_io::milvus
+            namespace: vector_io::chroma
     registered_resources:
       models:
       - metadata:

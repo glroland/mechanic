@@ -337,12 +337,15 @@ def register_vector_store_and_files(
                 "embedding_dimension": embedding_dimension,
                 # Must match the vector_io provider_id actually registered
                 # on the server (deploy/helm/templates/ogx-config.yaml), not
-                # just the provider_type. This was "milvus-remote" while the
-                # server ran remote::milvus against db.home.glroland.com;
-                # switched back to "milvus" (now inline::milvus, an embedded
-                # Milvus Lite file on the OGX pod's PVC) after the remote
-                # Milvus server's downtime took out an AutoRAG evaluation run.
-                "provider_id": "milvus",
+                # just the provider_type. Was "milvus-remote" (remote::milvus
+                # against db.home.glroland.com), then briefly "milvus"
+                # (inline::milvus, embedded Milvus Lite) - dropped that after
+                # discovering live that it breaks search on every OGX pod
+                # restart (MilvusIndex.initialize() never reloads an
+                # already-existing collection, so it's left in Milvus's
+                # "released" state). Now "chroma" (inline::chroma, embedded
+                # ChromaDB), which has no such load/release state.
+                "provider_id": "chroma",
             },
             _request_timeout=timeout,
         )

@@ -57,19 +57,22 @@ spec:
         # here but do nothing now that spec.overrideConfig (above) replaces
         # the env-var-driven config generator entirely - see ogx-config.yaml,
         # which hardcodes the embedding/vector_io provider config directly.
-        # Switched from remote::milvus (db.home.glroland.com:19530) to
-        # inline::milvus (embedded Milvus Lite) - see ogx-config.yaml. The
-        # remote server being down took out every AutoRAG evaluation run
-        # ("Connection refused" in the OGX pod logs); the embedded provider
-        # has no separate server to lose. MILVUS_DB_PATH/CONSISTENCY_LEVEL
-        # below are still live: ogx-config.yaml's vector_io provider reads
-        # them via ${env.VAR}. MILVUS_DB_PATH must point under
-        # workload.storage.mountPath (/.ogx) so the db file survives pod
-        # restarts instead of living on the container's ephemeral filesystem.
-        - name: MILVUS_DB_PATH
-          value: '/.ogx'
-        - name: MILVUS_CONSISTENCY_LEVEL
-          value: "Strong"
+        # First switched from remote::milvus (db.home.glroland.com:19530) to
+        # inline::milvus (embedded Milvus Lite) after the remote server's
+        # downtime took out an AutoRAG run - then switched again, to
+        # inline::chroma, after discovering live that inline::milvus breaks
+        # search on every OGX pod restart (confirmed in
+        # ogx.providers.remote.vector_io.milvus.milvus.MilvusIndex
+        # .initialize(): it skips load_collection() whenever the collection
+        # already exists, leaving a persisted collection "released" and
+        # every search failing until the vector store is deleted and
+        # re-ingested). See ogx-config.yaml for the full story. CHROMADB_PATH
+        # below is what ogx-config.yaml's vector_io provider reads via
+        # ${env.VAR}; it must point under workload.storage.mountPath (/.ogx)
+        # so the db survives pod restarts instead of living on the
+        # container's ephemeral filesystem.
+        - name: CHROMADB_PATH
+          value: '/.ogx/chroma'
         # Verified live: the "rh" distribution's StackConfig requires a
         # Postgres-backed KV + SQL state store at startup regardless of which
         # vector_io backend (Milvus here) is used - omitting these crashes the

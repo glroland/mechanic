@@ -440,13 +440,16 @@ deploymentSpec:
           \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
           : embedding_dimension,\n                # Must match the vector_io provider_id\
           \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
-          \ not\n                # just the provider_type. This was \"milvus-remote\"\
-          \ while the\n                # server ran remote::milvus against db.home.glroland.com;\n\
-          \                # switched back to \"milvus\" (now inline::milvus, an embedded\n\
-          \                # Milvus Lite file on the OGX pod's PVC) after the remote\n\
-          \                # Milvus server's downtime took out an AutoRAG evaluation\
-          \ run.\n                \"provider_id\": \"milvus\",\n            },\n \
-          \           _request_timeout=timeout,\n        )\n        vector_store_id\
+          \ not\n                # just the provider_type. Was \"milvus-remote\" (remote::milvus\n\
+          \                # against db.home.glroland.com), then briefly \"milvus\"\
+          \n                # (inline::milvus, embedded Milvus Lite) - dropped that\
+          \ after\n                # discovering live that it breaks search on every\
+          \ OGX pod\n                # restart (MilvusIndex.initialize() never reloads\
+          \ an\n                # already-existing collection, so it's left in Milvus's\n\
+          \                # \"released\" state). Now \"chroma\" (inline::chroma,\
+          \ embedded\n                # ChromaDB), which has no such load/release\
+          \ state.\n                \"provider_id\": \"chroma\",\n            },\n\
+          \            _request_timeout=timeout,\n        )\n        vector_store_id\
           \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
           \   f\"Successfully created vector store '{vector_store_name}' with ID:\
           \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
@@ -692,13 +695,16 @@ deploymentSpec:
           \        \"embedding_model\": embedding_model_id,\n                \"embedding_dimension\"\
           : embedding_dimension,\n                # Must match the vector_io provider_id\
           \ actually registered\n                # on the server (deploy/helm/templates/ogx-config.yaml),\
-          \ not\n                # just the provider_type. This was \"milvus-remote\"\
-          \ while the\n                # server ran remote::milvus against db.home.glroland.com;\n\
-          \                # switched back to \"milvus\" (now inline::milvus, an embedded\n\
-          \                # Milvus Lite file on the OGX pod's PVC) after the remote\n\
-          \                # Milvus server's downtime took out an AutoRAG evaluation\
-          \ run.\n                \"provider_id\": \"milvus\",\n            },\n \
-          \           _request_timeout=timeout,\n        )\n        vector_store_id\
+          \ not\n                # just the provider_type. Was \"milvus-remote\" (remote::milvus\n\
+          \                # against db.home.glroland.com), then briefly \"milvus\"\
+          \n                # (inline::milvus, embedded Milvus Lite) - dropped that\
+          \ after\n                # discovering live that it breaks search on every\
+          \ OGX pod\n                # restart (MilvusIndex.initialize() never reloads\
+          \ an\n                # already-existing collection, so it's left in Milvus's\n\
+          \                # \"released\" state). Now \"chroma\" (inline::chroma,\
+          \ embedded\n                # ChromaDB), which has no such load/release\
+          \ state.\n                \"provider_id\": \"chroma\",\n            },\n\
+          \            _request_timeout=timeout,\n        )\n        vector_store_id\
           \ = _parse_response(create_response)[\"id\"]\n        print(\n         \
           \   f\"Successfully created vector store '{vector_store_name}' with ID:\
           \ {vector_store_id}\"\n        )\n    except Exception as e:\n        print(f\"\
