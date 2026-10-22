@@ -15,7 +15,9 @@ from constants import AppUserInterfaceElements
 
 _NAV_LINKS = [
     ("app.py", AppUserInterfaceElements.RETURN_TO_APP_NAV_LABEL, "↩️"),
+    ("pages/simple_chat_example.py", AppUserInterfaceElements.SIMPLE_CHAT_NAV_LABEL, "💬"),
     ("pages/rag_search_example.py", AppUserInterfaceElements.RAG_SEARCH_NAV_LABEL, "🔍"),
+    ("pages/integrated_vector_search_example.py", AppUserInterfaceElements.INTEGRATED_SEARCH_NAV_LABEL, "🧩"),
     ("pages/add_content_example.py", AppUserInterfaceElements.ADD_CONTENT_NAV_LABEL, "📥"),
     ("pages/convert_document_example.py", AppUserInterfaceElements.CONVERT_DOCUMENT_NAV_LABEL, "📄"),
 ]

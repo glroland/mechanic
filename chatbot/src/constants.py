@@ -32,7 +32,15 @@ class AppUserInterfaceElements:
 
     RETURN_TO_APP_NAV_LABEL = "Return to App"
 
+    SIMPLE_CHAT_PAGE_TITLE = "Simple Chat Example"
+
+    SIMPLE_CHAT_NAV_LABEL = "Simple Chat"
+
     RAG_SEARCH_NAV_LABEL = "RAG Search"
+
+    INTEGRATED_SEARCH_PAGE_TITLE = "Responses API Vector Search Example"
+
+    INTEGRATED_SEARCH_NAV_LABEL = "Integrated Vector Search"
 
     ADD_CONTENT_PAGE_TITLE = "Add Content Example"
 
