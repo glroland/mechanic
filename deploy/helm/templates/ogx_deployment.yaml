@@ -31,14 +31,14 @@ spec:
     # limit.
     autoscaling:
       minReplicas: 1
-      maxReplicas: 3
+      maxReplicas: 8
       targetCPUUtilizationPercentage: 75
     resources:
       requests:
         cpu: '1'
         memory: 2Gi
       limits:
-        cpu: '2'
+        cpu: '6'
         memory: 12Gi
     # Diagnosed live 2026-10-21 against the crashing pod in the mechanic
     # namespace: this used to be a hand-rolled PVC mounted via
