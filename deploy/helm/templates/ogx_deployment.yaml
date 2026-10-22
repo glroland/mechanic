@@ -18,6 +18,28 @@ spec:
     key: config.yaml
   workload:
     replicas: 1
+    # Confirmed via `oc explain ogxserver.spec.workload.autoscaling` that
+    # this is a native HPA integration (the operator manages a real
+    # HorizontalPodAutoscaler against its own Deployment), not something
+    # that needs a hand-rolled HPA resource pointed at an implementation
+    # detail. Added after discovering live that OGX_WORKERS=1 serializes
+    # everything through a single worker - an AutoRAG optimization run and
+    # interactive chatbot traffic hitting the same pod at once backed up
+    # badly enough to look like a hung/broken server. Needs
+    # workload.resources.requests below to be set, since HPA computes
+    # targetCPUUtilizationPercentage against the CPU request value, not the
+    # limit.
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPUUtilizationPercentage: 75
+    resources:
+      requests:
+        cpu: '1'
+        memory: 2Gi
+      limits:
+        cpu: '2'
+        memory: 12Gi
     # Diagnosed live 2026-10-21 against the crashing pod in the mechanic
     # namespace: this used to be a hand-rolled PVC mounted via
     # workload.overrides.volumes/volumeMounts at /opt/app-root/src/.ogx. Two
