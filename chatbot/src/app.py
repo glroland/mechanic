@@ -4,7 +4,6 @@ Digital expert in fixing old corvettes
 """
 import os
 import logging
-import base64
 import streamlit as st
 from constants import SessionStateVariables
 from constants import AppUserInterfaceElements
@@ -13,6 +12,8 @@ from constants import MessageAttributes
 from constants import EnvironmentVariables
 from tracing import configure_tracing
 from ai_gateway import AIGateway
+from chrome import apply_background
+from chrome import render_sidebar_nav
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +34,6 @@ logger.setLevel(log_level)
 # idempotent) -- see tracing.py for how MLFLOW_TRACKING_URI gates it.
 configure_tracing()
 
-# Prepare engine bay photo
-def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-bin_str = get_base64_of_bin_file('assets/engine_bay.jpeg')
-
 # Initialize Streamlit State
 if SessionStateVariables.MESSAGES not in st.session_state:
     logger.info("Initializing OpenAI Client")
@@ -57,25 +51,22 @@ gateway = st.session_state[SessionStateVariables.GATEWAY]
 # Initialize High Level Page Structure
 st.set_page_config(page_title=AppUserInterfaceElements.TITLE,
                    page_icon=AppUserInterfaceElements.TAB_ICON,
-                   layout="wide")
+                   layout="wide",
+                   initial_sidebar_state="collapsed")
 
 # Page setup
-css = f"""
-<style>
-.stMain {{
-    background-image: url("data:image/png;base64,{bin_str}");
-    background-size: cover;
-    }}
+apply_background()
+render_sidebar_nav()
 
-.st-key-chatbot {{
+css = """
+<style>
+.st-key-chatbot {
     background-color: black;
-    //background-image: linear-gradient(to right, rgba(255,255,255, 0.3) 0 100%), url("data:image/png;base64,{bin_str}");
     background-size: cover;
     background-attachment: local;
-    //background-position: center center;
-}}
+}
 
-.stAppHeader {{visibility: hidden;}}
+.stAppHeader {visibility: hidden;}
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)

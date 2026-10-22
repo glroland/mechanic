@@ -28,6 +28,20 @@ class AppUserInterfaceElements:
 
     TAB_ICON = "./assets/icon.png"
 
+    RAG_SEARCH_PAGE_TITLE = "RAG Search Example"
+
+    RETURN_TO_APP_NAV_LABEL = "Return to App"
+
+    RAG_SEARCH_NAV_LABEL = "RAG Search"
+
+    ADD_CONTENT_PAGE_TITLE = "Add Content Example"
+
+    ADD_CONTENT_NAV_LABEL = "Add Content"
+
+    CONVERT_DOCUMENT_PAGE_TITLE = "Convert Document Example"
+
+    CONVERT_DOCUMENT_NAV_LABEL = "Convert Document"
+
 # pylint: disable=too-few-public-methods
 class CannedGreetings:
     """ Preestablished Responses """
