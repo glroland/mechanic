@@ -2,7 +2,7 @@ global:
 
   image:
     repository: registry.home.glroland.com/mechanic/
-    tag: 35 # last success - 34
+    tag: 36 # last success - 35
     pullPolicy: IfNotPresent
     usePullSecret: true
 
