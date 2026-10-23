@@ -66,6 +66,19 @@ css = """
     background-attachment: local;
 }
 
+.st-key-header_title {
+    background-color: rgba(0, 0, 0, 0.55);
+    border-radius: 16px;
+    padding: 0.4rem 1.5rem;
+    width: fit-content;
+}
+
+.st-key-header_title h1 {
+    color: #ffffff;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+    margin: 0;
+}
+
 .stAppHeader {visibility: hidden;}
 </style>
 """
@@ -83,7 +96,8 @@ with col2:
     if st.button("Service Manual"):
         display_service_manual()
 with col3:
-    st.markdown(""" # My&nbsp;Classic&nbsp;Corvette&nbsp;Garage """)
+    with st.container(key="header_title"):
+        st.markdown(""" # My&nbsp;Classic&nbsp;Corvette&nbsp;Garage """)
 
 # Initialize Chat Box
 messages = st.container(height=400, key="chatbot")
