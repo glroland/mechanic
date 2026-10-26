@@ -14,8 +14,12 @@ from ai_gateway import AIGateway
 from constants import AppUserInterfaceElements
 from constants import SessionStateVariables
 from chrome import setup_example_page
+from chrome import render_results_table
 
 logger = logging.getLogger(__name__)
+
+# Chunks the file_search tool retrieves and passes to the model per search
+MAX_RESULTS = 3
 
 card = setup_example_page(AppUserInterfaceElements.INTEGRATED_SEARCH_PAGE_TITLE, "🧩")
 
@@ -37,7 +41,11 @@ client = OpenAI(
 response = client.responses.create(
     model="vllm-inference/gemma-4",
     input="How do I check the wheel alignment?",
-    tools=[{"type": "file_search", "vector_store_ids": [vector_store_id]}],
+    tools=[{
+        "type": "file_search",
+        "vector_store_ids": [vector_store_id],
+        "max_num_results": 3,  # chunks passed to the model - keep small for LLM input
+    }],
     include=["file_search_call.results"],
 )
 
@@ -67,27 +75,28 @@ print(response.output_text)
             response = gateway.openai_client.responses.create(
                 model=gateway.model,
                 input=question,
-                tools=[{"type": "file_search", "vector_store_ids": [vector_store_id]}],
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": [vector_store_id],
+                    "max_num_results": MAX_RESULTS,
+                }],
                 include=["file_search_call.results"],
             )
 
             st.write(response.output_text)
 
-            rows = []
+            results = []
             for item in response.output:
                 if getattr(item, "type", None) != "file_search_call":
                     continue
-                for rank, result in enumerate(getattr(item, "results", None) or [], start=1):
-                    rows.append({
-                        "Rank": rank,
-                        "Score": getattr(result, "score", None),
-                        "Content": getattr(result, "text", None) or getattr(result, "filename", ""),
-                    })
+                for result in getattr(item, "results", None) or []:
+                    results.append((getattr(result, "score", None),
+                                    getattr(result, "text", None) or getattr(result, "filename", "")))
 
-            if rows:
+            if results:
                 st.divider()
                 st.caption("Chunks the model's file_search call retrieved:")
-                st.dataframe(rows, use_container_width=True, hide_index=True)
+                render_results_table(results)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("Integrated vector search failed: %s", e)
             st.error(f"Ask failed: {e}")

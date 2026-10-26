@@ -8,6 +8,7 @@ that's a framework-level initial render setting, not CSS, so the sidebar
 never has to "pop in" after the fact.
 """
 import base64
+import html
 
 import streamlit as st
 
@@ -55,6 +56,39 @@ EXAMPLE_CARD_CSS = """
 }
 </style>
 """
+
+# Plain HTML table rather than st.dataframe - the app's dark theme makes
+# st.dataframe's canvas-rendered grid draw white text on the white example card.
+# Fixed column widths + wrapping on Content keep long chunks from overflowing
+# the card and getting clipped; newlines become <br> rather than relying on
+# pre-wrap alone, since a blank line would end st.markdown's HTML block
+RESULTS_TABLE_CSS = """
+<style>
+.rag-results { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.9rem; }
+.rag-results th:nth-child(1) { width: 4rem; }
+.rag-results th:nth-child(2) { width: 6rem; }
+.rag-results td:nth-child(3) { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.rag-results th { background-color: #2b2b2b; color: #ffffff !important; text-align: left; padding: 0.6rem 0.8rem; }
+.rag-results td { color: #1a1a1a !important; padding: 0.6rem 0.8rem; vertical-align: top; border-bottom: 1px solid #dddddd; }
+.rag-results tbody tr:nth-child(odd) { background-color: #ffffff; }
+.rag-results tbody tr:nth-child(even) { background-color: #eef2f7; }
+</style>
+"""
+
+
+def render_results_table(results) -> None:
+    """ Renders (score, content) search results as a ranked table with
+        alternating row colors, readable on the white example card.
+    """
+    rows = []
+    for rank, (score, content) in enumerate(results, start=1):
+        score_text = f"{score:.4f}" if score is not None else ""
+        content_html = html.escape(content or "").replace("\n", "<br>")
+        rows.append(f"<tr><td>{rank}</td><td>{score_text}</td><td>{content_html}</td></tr>")
+    st.markdown(RESULTS_TABLE_CSS +
+                "<table class=\"rag-results\"><thead><tr><th>Rank</th><th>Score</th>"
+                "<th>Content</th></tr></thead><tbody>" + "".join(rows) +
+                "</tbody></table>", unsafe_allow_html=True)
 
 
 def get_base64_of_bin_file(bin_file: str) -> str:
