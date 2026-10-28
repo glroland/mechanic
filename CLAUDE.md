@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A RAG-based chatbot demo for classic C3 Corvette mechanics. It uses an OGX backend (formerly Llama Stack, OpenAI-compatible API) with Milvus vector database. The chatbot answers questions about C3 Corvettes by enriching prompts with relevant chunks from the service manual PDF.
+A RAG-based chatbot demo for classic C3 Corvette mechanics. It uses an OGX backend (formerly Llama Stack, OpenAI-compatible API) with a remote pgvector-backed Postgres vector store (this replaced Milvus on 2026-10-21 — see "Vector store backend migration" under OGX migration notes below; `import.py`/`ai_gateway.py` and this doc's older references to "Milvus" describe the pre-migration backend). The chatbot answers questions about C3 Corvettes by enriching prompts with relevant chunks from the service manual PDF.
 
 As of OpenShift AI 3.5, Llama Stack was renamed OGX. The `LlamaStackDistribution` CRD is deprecated in favor of `OGXServer` (`ogx.io/v1beta1`), managed by the OGX Operator (`dsc.spec.components.ogx`) instead of the Llama Stack Operator. OGX integration is a Technology Preview feature in 3.5.
 
@@ -70,10 +70,10 @@ A separate, lower-severity issue remains unfixed: a few regions (e.g. around the
 
 ### Infrastructure
 
-- **OGX** (formerly Llama Stack): OpenAI-compatible API layer sitting in front of the LLM (vLLM) and Milvus. Deployed on OpenShift AI using the OGX Operator via the `OGXServer` CRD (`deploy/ocp/ogx_deployment_using_operator.yaml`, `deploy/helm/templates/ogx_deployment.yaml`).
+- **OGX** (formerly Llama Stack): OpenAI-compatible API layer sitting in front of the LLM (vLLM) and a remote pgvector-backed Postgres vector store. Deployed on OpenShift AI using the OGX Operator via the `OGXServer` CRD (`deploy/ocp/ogx_deployment_using_operator.yaml`, `deploy/helm/templates/ogx_deployment.yaml`), with its actual runtime config supplied by `deploy/helm/templates/ogx-config.yaml` (`spec.overrideConfig`) rather than the operator's env-var-driven generator.
 - **Helm chart** (`deploy/helm/`): Deploys the chatbot to OpenShift. Image pulled from `registry.home.glroland.com/mechanic/`. Install with `helm install m1 .` from `deploy/helm/`.
 - **CI/CD**: `deploy/Jenkinsfile` builds the chatbot Docker image and pushes to the registry.
-- **Vector DB name**: hardcoded as `mechanic_vector_db` in both `import.py` and `ai_gateway.py`.
+- **Vector DB name**: hardcoded as `mechanic_vector_db` in both `import.py` and `ai_gateway.py` — this name is independent of the `vector_io` provider behind it (see "Vector store backend migration" below).
 - **MLflow GenAI tracing**: logs traces to the MLflow server running on OpenShift AI, same setup as the `distribution-center` project. `MLFLOW_TRACKING_AUTH=kubernetes-namespaced` (set via the chatbot's ConfigMap) auto-reads the pod's own service-account token for auth — this requires `deploy/helm/templates/serviceaccount-mlflow.yaml`'s `RoleBinding` to the `mlflow-operator-mlflow-integration` ClusterRole, and `mlflow[kubernetes]` in `chatbot/requirements.txt`. Locally, `make run-chatbot` instead passes a raw `MLFLOW_TRACKING_TOKEN` (from `oc whoami --show-token`), since there's no pod/namespace to derive kubernetes-namespaced auth from outside the cluster.
 
 ### OGX migration notes (OpenShift AI 3.5)
@@ -114,6 +114,20 @@ Tried `spec.providers.inference.inline.custom` (the CRD's structured provider fi
 Fixed instead with `spec.overrideConfig` (`deploy/helm/templates/ogx-config.yaml`, referenced from `ogx_deployment.yaml`): a full hand-written `config.yaml` that replaces the env-var-driven generator entirely. Built by taking the exact "Stack Configuration" block this OGXServer's own startup logs were already printing (so every value matches what the generator was correctly producing from `workload.overrides.env`) and adding one missing block — the `inline::sentence-transformers` provider — copied verbatim from the one other working OGXServer on this cluster (`sandbox` namespace, `lsd-genai-playground`'s `llama-stack-config` ConfigMap), which solves this exact problem the same way. `${env.VAR_NAME}`/`${env.VAR_NAME:=default}` substitution inside the ConfigMap still resolves from `workload.overrides.env`, confirmed against that same reference ConfigMap, so `VLLM_URL`/`MILVUS_*`/`POSTGRES_*` changes don't require editing the override file. Once `overrideConfig` is set, `ENABLE_SENTENCE_TRANSFORMERS`/`EMBEDDING_PROVIDER`/`EMBEDDING_MODEL`/`EMBEDDING_PROVIDER_MODEL_ID`/`ENABLE_INLINE_MILVUS` env vars do nothing — removed from `ogx_deployment.yaml`.
 
 One easy mistake made along the way, in case you hit it again: the `vector_stores.default_embedding_model.model_id` in the override config must exactly match a registered model's bare `model_id` (`granite-embedding-125m-english`), not the `provider_model_id` (`ibm-granite/granite-embedding-125m-english`) — using the latter fails fast with a clear error listing the actual available embedding model IDs.
+
+#### Vector store backend migration (vector_io provider)
+
+**Diagnosed 2026-10-21, a fourth, separate issue**, same day as the three above: `inline::milvus` broke vector search on every OGX pod restart. `MilvusIndex.initialize()` only reloads an existing collection via the fresh-creation code path, so a restarted pod (routine here — the `OGXServer`'s HPA swings between 1 and 8 replicas under load) came up with no visibility into previously-ingested data, even though nothing was actually deleted. Symptom looked exactly like "data needs to be reingested after every pod/system restart."
+
+Providers tried, in order, each a same-day commit (`git log -- deploy/helm/templates/ogx-config.yaml`):
+1. `remote::milvus` → `inline::milvus` (Milvus Lite) — the restart bug above.
+2. `inline::chromadb` — registers fine, but the `chromadb` pip package isn't actually installed in this distribution image (fails at first use, not at config load).
+3. `inline::faiss` — works and survives restarts, but AutoRAG's own compatibility check rejects every inline/embedded `vector_io` provider; its warning banner names only "a remote Milvus or PGVector provider" as supported.
+4. `remote::pgvector` against `db.home.glroland.com:5432` (current, `deploy/helm/templates/ogx-config.yaml`) — a separate Postgres instance from `kv_default`/`sql_default`'s `lls-postgresql` (confirmed live: `lls-postgresql`'s `pg_available_extensions` doesn't even list `vector`). `asyncpg` and `pgvector` pip packages are confirmed installed in this distribution image. The `mechanic` database on that server needed `CREATE EXTENSION vector;` run once as a superuser — the app's own `mechanic` user owns the database but isn't allowed to create extensions itself (confirmed live: `ERROR: permission denied to create extension "vector" - HINT: Must be superuser`).
+
+Confirmed live 2026-10-25 that this actually fixed the restart problem, after `OGXServer`'s HPA scaled 1→8→1 replicas and a node reboot separately bounced `lls-postgresql`: OGX pod startup logs show it checking every existing vector store for a conflicting HNSW index in Postgres and reusing it ("will continue to use vector index ... to preserve performance") instead of recreating it blank, and a live query of `/v1/vector_stores` showed `mechanic_vector_db` still had its ingested file (`file_counts.completed: 1`) throughout.
+
+**Remaining operational risk, not yet an observed bug**: `lls-postgresql` (the Postgres behind `kv_default`/`sql_default` — the registry of every OGX vector store/file, shared by all replicas) is a single, unreplicated `DeploymentConfig` pod. A node restart bouncing it causes a brief full-stack outage across every OGX replica simultaneously (no actual data loss, since it's PVC-backed, but likely to look like missing data while it's down) — this is the most probable source of any future "looks like I need to reingest" report, not the vector store itself. Separately, `sql_default`/`kv_default` pool settings (`pool_size=10`, `max_overflow=20` per OGX replica) can reach up to 240 Postgres connections at the HPA's max of 8 replicas, against `lls-postgresql`'s `max_connections=100` — a latent exhaustion risk under full scale-out, not yet hit but worth tightening (lower the per-replica pool sizes, or raise `max_connections`).
 
 ### Key Environment Variables
 
