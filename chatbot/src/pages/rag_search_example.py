@@ -12,8 +12,13 @@ from ai_gateway import AIGateway
 from constants import AppUserInterfaceElements
 from constants import SessionStateVariables
 from chrome import setup_example_page
+from chrome import render_results_table
 
 logger = logging.getLogger(__name__)
+
+# More than the chatbot's own AIGateway.MAX_SEARCH_RESULTS, so customers can
+# see how relevance falls off further down the result list
+MAX_RESULTS = 10
 
 card = setup_example_page(AppUserInterfaceElements.RAG_SEARCH_PAGE_TITLE, "🔍")
 
@@ -33,7 +38,7 @@ client = OpenAI(
 response = client.vector_stores.search(
     vector_store_id=vector_store_id,
     query="How do I check the wheel alignment?",
-    max_num_results=3,
+    max_num_results=10,  # keep this small (e.g. 3-5) when feeding results to an LLM
 )
 
 for result in response.data:
@@ -64,17 +69,15 @@ for result in response.data:
             response = gateway.openai_client.vector_stores.search(
                 vector_store_id=vector_store_id,
                 query=query,
-                max_num_results=AIGateway.MAX_SEARCH_RESULTS,
+                max_num_results=MAX_RESULTS,
                 timeout=AIGateway.SEARCH_TIMEOUT,
             )
 
-            rows = []
-            for rank, result in enumerate(response.data, start=1):
-                content = "\n\n".join(chunk.text for chunk in result.content)
-                rows.append({"Rank": rank, "Score": round(result.score, 4), "Content": content})
+            results = [(result.score, "\n\n".join(chunk.text for chunk in result.content))
+                       for result in response.data]
 
-            if rows:
-                st.dataframe(rows, use_container_width=True, hide_index=True)
+            if results:
+                render_results_table(results)
             else:
                 st.info("No matching content found.")
         except Exception as e:  # pylint: disable=broad-except
